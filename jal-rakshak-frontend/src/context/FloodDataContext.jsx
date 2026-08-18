@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import { floodApi } from '../services/floodApi'
 import {
   INITIAL_RIVERS,
   INITIAL_FORECAST_TIMELINE,
@@ -28,6 +29,26 @@ export function FloodDataProvider({ children }) {
   const [rescueTeams, setRescueTeams] = useState(INITIAL_RESCUE_TEAMS)
   const [riskZones] = useState(RISK_POLYGONS)
 
+  // Fetch real-time river telemetry helper
+  const fetchLiveRivers = useCallback(async () => {
+    try {
+      const liveRivers = await floodApi.getRiversTelemetry()
+      setRivers(liveRivers)
+    } catch (err) {
+      console.warn('Error loading live rivers telemetry:', err)
+    }
+  }, [])
+
+  // Fetch real-time river telemetry on mount
+  useEffect(() => {
+    fetchLiveRivers()
+    const interval = setInterval(fetchLiveRivers, 5 * 60 * 1000) // refresh every 5 min
+
+    return () => {
+      clearInterval(interval)
+    }
+  }, [fetchLiveRivers])
+
   // Simulation scenario switcher
   const changeScenario = useCallback((newScenario) => {
     setScenario(newScenario)
@@ -39,6 +60,9 @@ export function FloodDataProvider({ children }) {
           currentLevel: Number((r.warningLevel - 1.8).toFixed(2)),
           status: 'LOW',
           trend: 'STABLE',
+          inflow: '0.02 Lakh Cusecs',
+          outflow: '0.01 Lakh Cusecs',
+          gatesOpen: '0 / 64 Gates',
         }))
       )
       setForecastTimeline([
@@ -57,6 +81,9 @@ export function FloodDataProvider({ children }) {
           currentLevel: Number((r.warningLevel + 0.15).toFixed(2)),
           status: 'MEDIUM',
           trend: 'RISING',
+          inflow: '1.45 Lakh Cusecs',
+          outflow: '1.40 Lakh Cusecs',
+          gatesOpen: '12 / 64 Gates',
         }))
       )
       setForecastTimeline([
@@ -70,10 +97,10 @@ export function FloodDataProvider({ children }) {
     } else {
       // FLASH_FLOOD_RED_ALERT
       setRiskScore(88)
-      setRivers(INITIAL_RIVERS)
+      fetchLiveRivers()
       setForecastTimeline(INITIAL_FORECAST_TIMELINE)
     }
-  }, [])
+  }, [fetchLiveRivers])
 
   // Citizen adds new crowd hazard report
   const addReport = useCallback((newReport) => {
@@ -153,10 +180,13 @@ export function FloodDataProvider({ children }) {
     )
   }, [])
 
+  const isLive = scenario === 'FLASH_FLOOD_RED_ALERT'
+
   return (
     <FloodDataContext.Provider
       value={{
         scenario,
+        isLive,
         changeScenario,
         riskScore,
         setRiskScore,
