@@ -24,7 +24,7 @@ import {
 
 export default function Landing() {
   const { switchRole } = useAuth()
-  const { rivers, riskScore } = useFloodData()
+  const { rivers, riskScore, isLive, scenario } = useFloodData()
   const { activeCriticalAlert } = useAlert()
 
   return (
@@ -37,11 +37,25 @@ export default function Landing() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           {/* Live Alert Ticker */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/20 border border-red-500/30 text-red-300 text-xs font-semibold mb-6 animate-pulse">
-            <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
-            <span className="font-extrabold text-white">RED ALERT:</span>
-            <span>Mahanadi basin at Naraj (26.85m) exceeds Danger mark. 28 sluice gates opened.</span>
-          </div>
+          {scenario === 'NORMAL' ? (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-semibold mb-6">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="font-extrabold text-white">STATUS: STABLE</span>
+              <span>All river basins are currently operating within normal parameters.</span>
+            </div>
+          ) : scenario === 'MONSOON_WARNING' ? (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold mb-6 animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+              <span className="font-extrabold text-white">MONSOON SURGE WARNING:</span>
+              <span>Catchment water levels rising. Sluice gate releases monitored.</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/20 border border-red-500/30 text-red-300 text-xs font-semibold mb-6 animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
+              <span className="font-extrabold text-white">LIVE MODEL ADVISORY:</span>
+              <span>Real-time river discharge updates powered by Open-Meteo GloFAS.</span>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-7 space-y-6">
@@ -104,8 +118,12 @@ export default function Landing() {
                     <Activity className="w-5 h-5 text-red-400 animate-pulse" />
                     <span className="font-extrabold text-sm text-white">Live Catchment Telemetry</span>
                   </div>
-                  <span className="text-[10px] font-mono bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full border border-red-500/30">
-                    CWC SENSORS LIVE
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                    isLive 
+                      ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' 
+                      : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                  }`}>
+                    {isLive ? 'GLOFAS MODEL LIVE' : 'DEMO SIMULATION'}
                   </span>
                 </div>
 
@@ -142,6 +160,13 @@ export default function Landing() {
                   >
                     View Radar &rarr;
                   </Link>
+                </div>
+
+                <div className="text-[9px] text-slate-400 leading-normal border-t border-slate-700/50 pt-2.5 space-y-1">
+                  <p className="font-semibold text-slate-300">⚠️ IMPORTANT SAFETY NOTICE:</p>
+                  <p>
+                    This dashboard display contains automated satellite-derived forecasting models (Open-Meteo GloFAS) or scenario simulations for coordination purposes. It is NOT an official governmental alarm. Always consult local radio, CWC bulletins, or NDMA emergency services for official warning verification before taking safety-critical actions.
+                  </p>
                 </div>
               </div>
             </div>

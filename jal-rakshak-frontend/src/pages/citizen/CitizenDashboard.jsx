@@ -26,7 +26,7 @@ import {
 export default function CitizenDashboard() {
   const { user } = useAuth()
   const { t } = useLanguage()
-  const { riskScore, rivers, forecastTimeline, shelters, reports } = useFloodData()
+  const { riskScore, rivers, forecastTimeline, shelters, reports, isLive, scenario } = useFloodData()
   const { alerts, activeCriticalAlert, dismissAlert } = useAlert()
 
   const quickActions = [
@@ -155,10 +155,17 @@ export default function CitizenDashboard() {
 
       {/* Catchment River Gauges Telemetry */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h3 className="text-base font-extrabold text-slate-900 flex flex-wrap items-center gap-2">
             <Activity className="w-4 h-4 text-red-500 animate-pulse" />
-            <span>Major River Gauges (Central Water Commission)</span>
+            <span>Major River Catchment Gauges</span>
+            <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
+              isLive 
+                ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                : 'bg-amber-100 text-amber-700 border border-amber-200'
+            }`}>
+              {isLive ? 'GloFAS Model Forecast' : 'Simulation'}
+            </span>
           </h3>
           <span className="text-xs text-slate-500">Live Auto-Refresh (every 5 min)</span>
         </div>
@@ -206,6 +213,17 @@ export default function CitizenDashboard() {
               </div>
             )
           })}
+        </div>
+
+        {/* Safety Disclaimer and Source Box */}
+        <div className="mt-4 p-4 rounded-3xl bg-slate-100 border border-slate-200 text-xs text-slate-600 flex items-start gap-2.5">
+          <ShieldAlert className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-extrabold text-slate-800">Operational Notice & Safety Advisory</p>
+            <p className="mt-1 leading-normal">
+              The catchment levels and values displayed above are estimates computed from real-time satellite runoff forecasting models (Open-Meteo GloFAS) or simulated scenario presets. They do <strong>not</strong> represent official real-time physical telemetry feeds from the Central Water Commission (CWC) or warnings from the National Disaster Management Authority (NDMA). Citizens must prioritize local warning sirens, announcements, and direct district administration orders for any critical safety or evacuation decisions.
+            </p>
+          </div>
         </div>
       </div>
 
