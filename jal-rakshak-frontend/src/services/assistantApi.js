@@ -1,11 +1,47 @@
 import api from './api'
 
 export const assistantApi = {
-  chat: async ({ message, language = 'en', history = [] }) => {
+  chat: async ({ message, language = 'en', history = [], location = null }) => {
+    // Map history to match FastAPI Backend ChatMessage schema
+    const chat_history = history.map(msg => ({
+      role: msg.sender === 'user' ? 'user' : 'assistant',
+      content: msg.text || msg.content || ''
+    }))
+
+    // Map location fields to match UserLocation schema
+    let resolvedLocation = null
+    if (location && typeof location.latitude === 'number' && typeof location.longitude === 'number') {
+      resolvedLocation = {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        address: location.address || null,
+        district: location.district || null,
+        state: location.state || null
+      }
+    }
+
     try {
-      const res = await api.post('/api/v1/assistant/chat', { message, language, history })
-      return res.data
-    } catch {
+      const res = await api.post('/api/chat', {
+        message,
+        language,
+        chat_history,
+        location: resolvedLocation,
+        scenario: "Live Real-Time Monitoring"
+      })
+
+      return {
+        reply: res.data.reply,
+        citations: res.data.citations || [],
+        suggestedActions: [],
+        nearestShelters: res.data.nearest_shelters || [],
+        helplines: res.data.helplines || {},
+        sosAction: res.data.sos_action,
+        liveWeather: res.data.live_weather,
+        resolvedLocation: res.data.resolved_location,
+        timestamp: new Date().toISOString()
+      }
+    } catch (err) {
+      console.warn("Could not connect to live backend. Falling back to sandbox simulator:", err)
       // Intelligent knowledge base simulation for Jal Rakshak AI
       const q = message.toLowerCase()
       let reply = ''
@@ -49,7 +85,12 @@ export const assistantApi = {
         reply,
         citations,
         suggestedActions,
-        timestamp: new Date().toISOString(),
+        nearestShelters: [],
+        helplines: { "Emergency": "112", "NDRF": "1078" },
+        sosAction: null,
+        liveWeather: null,
+        resolvedLocation: "Simulated Sandbox",
+        timestamp: new Date().toISOString()
       }
     }
   },
