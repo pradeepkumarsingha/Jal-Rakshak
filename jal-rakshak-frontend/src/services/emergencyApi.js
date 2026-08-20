@@ -15,7 +15,7 @@ export const emergencyApi = {
         timestamp: new Date().toISOString(),
         assignedTeam: null,
         etaMinutes: null,
-        ...data,
+        ...data,o
       }
     }
   },

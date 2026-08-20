@@ -39,4 +39,18 @@ export const authApi = {
       return DEMO_ACCOUNTS.citizen
     }
   },
+
+  forgotPassword: async ({ email, portal = 'citizen' }) => {
+    try {
+      const res = await api.post('/api/v1/auth/forgot-password', { email, portal })
+      return res.data
+    } catch (err) {
+      const errorMsg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        'Failed to process password reset request.'
+      throw new Error(errorMsg)
+    }
+  },
 }

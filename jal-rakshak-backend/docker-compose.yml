@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:6.0
+    container_name: jalrakshak-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: jalrakshak
+    volumes:
+      - mongodb_data:/data/db
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: jalrakshak-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Express.js Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jalrakshak-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/jalrakshak
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=jal_rakshak_super_secret_jwt_key_2024_disaster_response_platform
+      - JWT_EXPIRE=7d
+      - AI_SERVICE_URL=http://ai-service:8000
+      - FRONTEND_URL=http://localhost:5173
+    depends_on:
+      - mongodb
+      - redis
+
+volumes:
+  mongodb_data:
+  redis_data:

@@ -1,0 +1,759 @@
+{
+  "info": {
+    "_postman_id": "jal-rakshak-api-v1-suite",
+    "name": "Jal Rakshak API Integration & E2E Test Suite",
+    "description": "Production verification suite for Jal Rakshak AI - Flood Intelligence & Emergency Response Platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"API is healthy and operational\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "02 - Citizen Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Citizen token received\", function () {",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    var token = jsonData.data.accessToken || jsonData.data.token;",
+              "    pm.expect(token).to.not.be.undefined;",
+              "    pm.environment.set(\"citizenToken\", token);",
+              "    pm.environment.set(\"citizenId\", jsonData.data.user.id);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"citizen@demo.jalrakshak.org\",\n  \"password\": \"Citizen@123\",\n  \"portal\": \"citizen\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "03 - Admin Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Admin token received and role is admin\", function () {",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data.user.role).to.eql(\"admin\");",
+              "    var token = jsonData.data.accessToken || jsonData.data.token;",
+              "    pm.environment.set(\"adminToken\", token);",
+              "    pm.environment.set(\"adminId\", jsonData.data.user.id);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@demo.jalrakshak.org\",\n  \"password\": \"Admin@123\",\n  \"portal\": \"admin\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "04 - Rescue Unit Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Rescue token received and role is rescue\", function () {",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data.user.role).to.eql(\"rescue\");",
+              "    var token = jsonData.data.accessToken || jsonData.data.token;",
+              "    pm.environment.set(\"rescueToken\", token);",
+              "    pm.environment.set(\"rescueId\", jsonData.data.user.id);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"rescue@demo.jalrakshak.org\",\n  \"password\": \"Rescue@123\",\n  \"portal\": \"rescue\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "05 - Reject Citizen from Admin Portal",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "pm.test(\"Role mismatch error returned\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.false;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"citizen@demo.jalrakshak.org\",\n  \"password\": \"Citizen@123\",\n  \"portal\": \"admin\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "06 - Reject Citizen Token on Admin Endpoint",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{citizenToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/admin/dashboard",
+          "host": ["{{baseUrl}}"],
+          "path": ["admin", "dashboard"]
+        }
+      }
+    },
+    {
+      "name": "07 - Test Flood Risk Prediction",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Flood prediction contains risk score and breakdown\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data.riskScore).to.be.a('number');",
+              "    pm.expect(jsonData.data.riskLevel).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{citizenToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"latitude\": 20.4625,\n  \"longitude\": 85.8830,\n  \"locationName\": \"Cuttack, Odisha\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/flood/predict",
+          "host": ["{{baseUrl}}"],
+          "path": ["flood", "predict"]
+        }
+      }
+    },
+    {
+      "name": "08 - Test Risk Map GeoJSON",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Returns valid GeoJSON FeatureCollection\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data.type).to.eql(\"FeatureCollection\");",
+              "    pm.expect(jsonData.data.features).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{citizenToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/gis/risk-map?district=Cuttack&state=Odisha&window=current",
+          "host": ["{{baseUrl}}"],
+          "path": ["gis", "risk-map"],
+          "query": [
+            { "key": "district", "value": "Cuttack" },
+            { "key": "state", "value": "Odisha" },
+            { "key": "window", "value": "current" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "09 - Test Nearby Shelters (Geospatial $near)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "if (jsonData.data && jsonData.data.length > 0) {",
+              "    pm.environment.set(\"shelterId\", jsonData.data[0]._id || jsonData.data[0].id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{citizenToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/gis/shelters?latitude=20.4625&longitude=85.8830&radiusKm=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["gis", "shelters"],
+          "query": [
+            { "key": "latitude", "value": "20.4625" },
+            { "key": "longitude", "value": "85.8830" },
+            { "key": "radiusKm", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "10 - Test AI Safe Evacuation Route",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Safe route instructions generated\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{citizenToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"origin\": {\n    \"latitude\": 20.4625,\n    \"longitude\": 85.8830\n  },\n  \"destination\": {\n    \"latitude\": 20.4700,\n    \"longitude\": 85.8900\n  },\n  \"mode\": \"pedestrian\",\n  \"avoidFloodZones\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/gis/safe-route",
+          "host": ["{{baseUrl}}"],
+          "path": ["gis", "safe-route"]
+        }
+      }
+    },
+    {
+      "name": "11 - Submit Citizen Flood Report",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 or 200\", function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "if (jsonData.data) {",
+              "    pm.environment.set(\"reportId\", jsonData.data._id || jsonData.data.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{citizenToken}}" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "latitude", "value": "20.4625", "type": "text" },
+            { "key": "longitude", "value": "85.8830", "type": "text" },
+            { "key": "address", "value": "Near Naraj, Cuttack", "type": "text" },
+            { "key": "waterLevel", "value": "HIGH", "type": "text" },
+            { "key": "roadStatus", "value": "BLOCKED", "type": "text" },
+            { "key": "description", "value": "Water has entered the road and ground floors", "type": "text" }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/reports",
+          "host": ["{{baseUrl}}"],
+          "path": ["reports"]
+        }
+      }
+    },
+    {
+      "name": "12 - Admin Verifies Report",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Report verified successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"action\": \"VERIFY\",\n  \"notes\": \"Verified by admin command room\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/reports/{{reportId}}/verify",
+          "host": ["{{baseUrl}}"],
+          "path": ["reports", "{{reportId}}", "verify"]
+        }
+      }
+    },
+    {
+      "name": "13 - Create SOS Emergency Request",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Emergency SOS priority calculated\", function () {",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data.priorityScore).to.be.a('number');",
+              "    pm.environment.set(\"emergencyId\", jsonData.data._id || jsonData.data.id);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{citizenToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestType\": \"RESCUE_REQUIRED\",\n  \"latitude\": 20.4625,\n  \"longitude\": 85.8830,\n  \"address\": \"Near Naraj, Cuttack\",\n  \"totalPeople\": 5,\n  \"childrenCount\": 2,\n  \"elderlyCount\": 1,\n  \"disabilityCount\": 0,\n  \"medicalEmergency\": true,\n  \"waterSeverity\": \"SEVERE\",\n  \"roadAccess\": \"BLOCKED\",\n  \"description\": \"Family trapped on upper floor with infant\",\n  \"contact\": {\n    \"name\": \"Ramesh Mohanty\",\n    \"phone\": \"+919876543210\",\n    \"altPhone\": \"+919123456789\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/emergency/request",
+          "host": ["{{baseUrl}}"],
+          "path": ["emergency", "request"]
+        }
+      }
+    },
+    {
+      "name": "14 - Admin Views Emergency Requests",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Emergency requests array returned\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/emergency/requests?status=PENDING",
+          "host": ["{{baseUrl}}"],
+          "path": ["emergency", "requests"],
+          "query": [
+            { "key": "status", "value": "PENDING" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "15 - Admin Lists Rescue Teams",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "if (jsonData.data && jsonData.data.length > 0) {",
+              "    pm.environment.set(\"teamId\", jsonData.data[0]._id || jsonData.data[0].id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/rescue/teams",
+          "host": ["{{baseUrl}}"],
+          "path": ["rescue", "teams"]
+        }
+      }
+    },
+    {
+      "name": "16 - Admin Assigns Rescue Team",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Rescue assignment confirmed\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rescueTeamId\": \"{{teamId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/emergency/{{emergencyId}}/assign",
+          "host": ["{{baseUrl}}"],
+          "path": ["emergency", "{{emergencyId}}", "assign"]
+        }
+      }
+    },
+    {
+      "name": "17 - Rescue Views Assignments",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Assigned emergencies list returned\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{rescueToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/rescue/assignments",
+          "host": ["{{baseUrl}}"],
+          "path": ["rescue", "assignments"]
+        }
+      }
+    },
+    {
+      "name": "18 - Rescue Updates Status to IN_PROGRESS",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Status updated to IN_PROGRESS\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{rescueToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"IN_PROGRESS\",\n  \"note\": \"Team is en route with motorized rescue boat\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/emergency/{{emergencyId}}/status",
+          "host": ["{{baseUrl}}"],
+          "path": ["emergency", "{{emergencyId}}", "status"]
+        }
+      }
+    },
+    {
+      "name": "19 - Test AI Assistant RAG Chat",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"AI assistant response contains reply and citations\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data.reply || jsonData.reply).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{citizenToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"Where is the nearest safe shelter in Cuttack?\",\n  \"language\": \"en\",\n  \"userLocation\": {\n    \"latitude\": 20.4625,\n    \"longitude\": 85.8830\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/assistant/chat",
+          "host": ["{{baseUrl}}"],
+          "path": ["assistant", "chat"]
+        }
+      }
+    },
+    {
+      "name": "20 - Admin Broadcasts Alert",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.test(\"Alert broadcasted\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"alertType\": \"CRITICAL\",\n  \"title\": \"Mahanadi River Inundation Warning\",\n  \"message\": \"Mahanadi water level at Naraj barrage has crossed the danger mark. Follow official evacuation instructions.\",\n  \"messageHi\": \"महानदी नदी का जलस्तर खतरे के निशान से ऊपर है।\",\n  \"messageOr\": \"ମହାନଦୀ ନଦୀର ଜଳସ୍ତର ବିପଦ ସୀମା ଅତିକ୍ରମ କରିଛି।\",\n  \"targetAreas\": [\"Cuttack\", \"Naraj\"],\n  \"deliveryChannels\": [\"in_app\", \"sms\", \"push\"]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/alerts/broadcast",
+          "host": ["{{baseUrl}}"],
+          "path": ["alerts", "broadcast"]
+        }
+      }
+    },
+    {
+      "name": "21 - Citizen Reads Active Alerts",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Alerts list returned\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.be.true;",
+              "    pm.expect(jsonData.data).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{citizenToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/alerts?language=en",
+          "host": ["{{baseUrl}}"],
+          "path": ["alerts"],
+          "query": [
+            { "key": "language", "value": "en" }
+          ]
+        }
+      }
+    }
+  ]
+}
