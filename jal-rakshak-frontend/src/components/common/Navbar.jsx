@@ -130,46 +130,62 @@ export default function Navbar() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-2">
-          {/* Official Logo */}
+          {/* Official Logo with dark theme support */}
           <Link to="/" className="flex items-center group">
-            <JalRakshakLogo variant="horizontal" size="sm" showTagline={true} />
+            <JalRakshakLogo
+              variant="horizontal"
+              size="sm"
+              theme={isDarkPortal ? 'dark' : 'light'}
+              showTagline={true}
+            />
           </Link>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1">
-            {navLinks.map((item) => {
-              const Icon = item.icon
-              const active = isActive(item.path)
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
-                    active
-                      ? isDarkPortal
-                        ? 'bg-brand-600 text-white font-bold shadow-sm shadow-brand-600/30'
-                        : 'bg-brand-50 text-brand-700 font-bold border border-brand-200/60 shadow-xs'
-                      : isDarkPortal
-                      ? 'text-slate-300 hover:text-white hover:bg-slate-800'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Icon
-                    className={`w-4 h-4 ${
+          {/* Desktop Navigation Links - Shown on Citizen & Public pages, removed on Admin/Rescue to avoid duplication with Sidebar */}
+          {!isDarkPortal ? (
+            <nav className="hidden lg:flex items-center gap-1">
+              {navLinks.map((item) => {
+                const Icon = item.icon
+                const active = isActive(item.path)
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition ${
                       active
-                        ? isDarkPortal
-                          ? 'text-white'
-                          : 'text-brand-600'
-                        : isDarkPortal
-                        ? 'text-slate-400'
-                        : 'text-slate-400'
+                        ? 'bg-brand-50 text-brand-700 font-bold border border-brand-200/60 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                     }`}
-                  />
-                  <span>{item.name}</span>
-                </Link>
-              )
-            })}
-          </nav>
+                  >
+                    <Icon className={`w-4 h-4 ${active ? 'text-brand-600' : 'text-slate-400'}`} />
+                    <span>{item.name}</span>
+                  </Link>
+                )
+              })}
+            </nav>
+          ) : (
+            <div className="hidden lg:flex items-center gap-2">
+              <div
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-semibold shadow-xs ${
+                  isAdmin
+                    ? 'bg-purple-950/40 border-purple-800/60 text-purple-200'
+                    : 'bg-emerald-950/40 border-emerald-800/60 text-emerald-200'
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full animate-pulse ${
+                    isAdmin ? 'bg-purple-400' : 'bg-emerald-400'
+                  }`}
+                />
+                <span className="font-bold tracking-wide">
+                  {isAdmin
+                    ? 'State Disaster Management Control Center (SEOC)'
+                    : 'NDRF & ODRAF Field Operations HQ'}
+                </span>
+                <span className="text-slate-600">•</span>
+                <span className="font-mono text-[11px] text-cyan-400">Telemetry Active</span>
+              </div>
+            </div>
+          )}
 
           {/* Action Bar Right */}
           <div className="flex items-center gap-2 sm:gap-3">
