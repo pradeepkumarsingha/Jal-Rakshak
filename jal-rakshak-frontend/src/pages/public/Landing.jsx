@@ -20,10 +20,15 @@ import {
   Activity,
   ArrowRight,
   ShieldCheck,
+  TrendingUp,
+  CloudRain,
+  Heart,
+  Sprout,
 } from 'lucide-react'
+import JalRakshakLogo from '../../components/common/JalRakshakLogo'
 
 export default function Landing() {
-  const { switchRole } = useAuth()
+  const { user } = useAuth()
   const { rivers, riskScore, isLive, scenario } = useFloodData()
   const { activeCriticalAlert } = useAlert()
 
@@ -191,8 +196,7 @@ export default function Landing() {
             </div>
             <div className="mt-6 pt-4 border-t border-slate-100">
               <Link
-                to="/dashboard"
-                onClick={() => switchRole('citizen')}
+                to={user?.role === 'citizen' ? '/dashboard' : '/login?portal=citizen'}
                 className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md transition"
               >
                 <span>Enter Citizen Portal</span>
@@ -215,8 +219,7 @@ export default function Landing() {
             </div>
             <div className="mt-6 pt-4 border-t border-slate-800">
               <Link
-                to="/admin"
-                onClick={() => switchRole('admin')}
+                to={user?.role === 'admin' ? '/admin' : '/login?portal=admin'}
                 className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition"
               >
                 <span>Launch Admin Command</span>
@@ -239,8 +242,7 @@ export default function Landing() {
             </div>
             <div className="mt-6 pt-4 border-t border-slate-800">
               <Link
-                to="/rescue"
-                onClick={() => switchRole('rescue')}
+                to={user?.role === 'rescue' ? '/rescue' : '/login?portal=rescue'}
                 className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition"
               >
                 <span>Open Tactical Portal</span>
@@ -251,8 +253,77 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* 4 Official Core Pillars (From Brand Logo) */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-8">
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b border-slate-100 pb-6 mb-6">
+            <div className="flex items-center gap-4">
+              <JalRakshakLogo variant="icon" size="lg" />
+              <div>
+                <h3 className="text-xl font-extrabold text-slate-900">Official Brand Pillars</h3>
+                <p className="text-xs text-slate-500">
+                  <span className="font-bold text-brand-600">PREDICT. PROTECT. RESPOND.</span> — National Flood Intelligence Protocol
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Life-Safety Certified</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+            {/* Pillar 1: Early Warning */}
+            <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-100 flex flex-col items-center text-center group hover:bg-sky-100/70 transition">
+              <div className="w-12 h-12 rounded-full bg-sky-500 text-white flex items-center justify-center mb-3 shadow-md shadow-sky-500/20 group-hover:scale-110 transition-transform">
+                <CloudRain className="w-6 h-6" />
+              </div>
+              <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide">Early Warning</h4>
+              <p className="text-[11px] text-slate-600 mt-1 leading-snug">
+                Real-time river level sensing & rainfall forecast alerts
+              </p>
+            </div>
+
+            {/* Pillar 2: Risk Prediction */}
+            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100 flex flex-col items-center text-center group hover:bg-emerald-100/70 transition">
+              <div className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center mb-3 shadow-md shadow-emerald-600/20 group-hover:scale-110 transition-transform">
+                <TrendingUp className="w-6 h-6" />
+              </div>
+              <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide">Risk Prediction</h4>
+              <p className="text-[11px] text-slate-600 mt-1 leading-snug">
+                AI hydrologic modeling & localized inundation mapping
+              </p>
+            </div>
+
+            {/* Pillar 3: Protect Lives */}
+            <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-100 flex flex-col items-center text-center group hover:bg-blue-100/70 transition">
+              <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center mb-3 shadow-md shadow-blue-600/20 group-hover:scale-110 transition-transform">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide">Protect Lives</h4>
+              <p className="text-[11px] text-slate-600 mt-1 leading-snug">
+                Verified relief shelters & AI safe high-ground routes
+              </p>
+            </div>
+
+            {/* Pillar 4: Safer Tomorrow */}
+            <div className="p-4 rounded-2xl bg-teal-50/70 border border-teal-100 flex flex-col items-center text-center group hover:bg-teal-100/70 transition">
+              <div className="w-12 h-12 rounded-full bg-teal-600 text-white flex items-center justify-center mb-3 shadow-md shadow-teal-600/20 group-hover:scale-110 transition-transform">
+                <Sprout className="w-6 h-6" />
+              </div>
+              <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide">Safer Tomorrow</h4>
+              <p className="text-[11px] text-slate-600 mt-1 leading-snug">
+                Resilient infrastructure & coordinated rescue network
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Feature Showcase Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center max-w-3xl mx-auto mb-14">
           <span className="text-xs font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-3 py-1 rounded-full border border-brand-200">
             Complete Disaster Intelligence Suite

@@ -1,0 +1,55 @@
+const express = require('express');
+const { body } = require('express-validator');
+const {
+  register,
+  login,
+  refreshToken,
+  getMe,
+  updateProfile,
+  logout,
+  forgotPassword,
+} = require('../controllers/authController');
+const { protect } = require('../middleware/auth');
+const { validate } = require('../middleware/validation');
+const { authLimiter } = require('../middleware/rateLimiter');
+
+const router = express.Router();
+
+router.post(
+  '/register',
+  authLimiter,
+  [
+    body('email').isEmail().withMessage('Please provide a valid email address'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    validate,
+  ],
+  register
+);
+
+router.post(
+  '/login',
+  authLimiter,
+  [
+    body('email').isEmail().withMessage('Please provide a valid email address'),
+    body('password').notEmpty().withMessage('Password is required'),
+    validate,
+  ],
+  login
+);
+
+router.post(
+  '/forgot-password',
+  authLimiter,
+  [
+    body('email').isEmail().withMessage('Please provide a valid email address'),
+    validate,
+  ],
+  forgotPassword
+);
+
+router.post('/refresh', refreshToken);
+router.get('/me', protect, getMe);
+router.put('/profile', protect, updateProfile);
+router.post('/logout', protect, logout);
+
+module.exports = router;

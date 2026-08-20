@@ -25,7 +25,7 @@ export default function ChatInterface() {
   const [loading, setLoading] = useState(false)
   const [userLocation, setUserLocation] = useState({ latitude: 20.1983, longitude: 85.7144 })
   const [liveWeather, setLiveWeather] = useState(null)
-  const messagesEndRef = useRef(null)
+  const messagesContainerRef = useRef(null)
 
   const suggestions = [
     'How to purify flood water for drinking?',
@@ -35,12 +35,17 @@ export default function ChatInterface() {
     'How do I request an NDRF rescue boat?',
   ]
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const scrollToBottom = (behavior = 'smooth') => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior,
+      })
+    }
   }
 
   useEffect(() => {
-    scrollToBottom()
+    scrollToBottom('smooth')
   }, [messages, loading])
 
   // Detect Real Device GPS on mount
@@ -50,11 +55,11 @@ export default function ChatInterface() {
         (pos) => {
           setUserLocation({
             latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude
+            longitude: pos.coords.longitude,
           })
         },
         (err) => {
-          console.warn("GPS lookup failed, using fallback:", err.message)
+          console.warn('GPS lookup failed, using fallback:', err.message)
         },
         { enableHighAccuracy: true, timeout: 8000 }
       )
@@ -113,9 +118,9 @@ export default function ChatInterface() {
   }
 
   return (
-    <div className="flex flex-col h-[750px] max-h-[85vh] bg-slate-50 rounded-3xl border border-slate-200 overflow-hidden shadow-xl">
+    <div className="flex flex-col h-full min-h-[520px] bg-slate-50 rounded-3xl border border-slate-200 overflow-hidden shadow-xl">
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 text-white p-4 border-b border-slate-800 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 text-white p-4 border-b border-slate-800 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 to-cyan-400 flex items-center justify-center text-white shadow-md">
             <Bot className="w-5 h-5" />
@@ -148,7 +153,7 @@ export default function ChatInterface() {
       </div>
 
       {/* Emergency Disclaimer Banner */}
-      <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-[11px] text-amber-900 flex items-center gap-2">
+      <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-[11px] text-amber-900 flex items-center gap-2 shrink-0">
         <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
         <span>
           <strong>Emergency Advisory:</strong> In immediate life-threatening situations, do not wait for chat. Trigger Emergency SOS or dial <strong>112 / 1078</strong> directly.
@@ -157,7 +162,7 @@ export default function ChatInterface() {
 
       {/* Live Weather Ticker */}
       {liveWeather && (
-        <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 text-xs text-slate-300 flex items-center justify-between">
+        <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 text-xs text-slate-300 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <CloudRain className="w-4 h-4 text-cyan-400" />
             <span>
@@ -170,8 +175,8 @@ export default function ChatInterface() {
         </div>
       )}
 
-      {/* Messages Thread */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+      {/* Messages Thread (Scoped Scrollable Container) */}
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
         {messages.map((m) => (
           <ChatMessage key={m.id} message={m} />
         ))}
@@ -189,20 +194,19 @@ export default function ChatInterface() {
             </div>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Suggested Questions Chips */}
-      <div className="px-4 py-2 bg-white border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      <div className="px-4 py-2 bg-white border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
           Suggested:
         </span>
         {suggestions.map((s, idx) => (
           <button
             key={idx}
+            type="button"
             onClick={() => handleSendMessage(s)}
-            className="whitespace-nowrap px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-brand-50 hover:text-brand-700 text-slate-700 text-xs font-medium border border-slate-200/80 transition shrink-0"
+            className="whitespace-nowrap px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-brand-50 hover:text-brand-700 text-slate-700 text-xs font-medium border border-slate-200/80 transition shrink-0 cursor-pointer"
           >
             {s}
           </button>
@@ -210,7 +214,7 @@ export default function ChatInterface() {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-white border-t border-slate-200">
+      <div className="p-4 bg-white border-t border-slate-200 shrink-0">
         <ChatInput onSend={handleSendMessage} loading={loading} placeholder={t('ai.inputPlaceholder')} />
       </div>
     </div>

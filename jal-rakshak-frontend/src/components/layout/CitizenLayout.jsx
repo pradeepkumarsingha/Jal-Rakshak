@@ -1,11 +1,19 @@
 import React from 'react'
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, Navigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import Navbar from '../common/Navbar'
 import Footer from '../common/Footer'
 import { LayoutDashboard, MapPin, Home, Navigation, FilePlus2, Flame, Bot } from 'lucide-react'
 
 export default function CitizenLayout() {
+  const { user, isAuthenticated } = useAuth()
   const location = useLocation()
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login?portal=citizen" state={{ from: location }} replace />
+  }
+
+  const isOfficer = user?.role === 'admin' || user?.role === 'rescue'
 
   const mobileBottomNav = [
     { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -17,6 +25,22 @@ export default function CitizenLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+      {/* Officer inspection banner if logged in as Admin/Rescue */}
+      {isOfficer && (
+        <div className="bg-slate-900 text-slate-200 border-b border-slate-800 px-4 py-1.5 text-xs flex items-center justify-between z-30">
+          <span className="flex items-center gap-1.5 font-medium">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <span>Viewing Citizen Portal in <strong>{user?.role === 'admin' ? 'State Admin' : 'Rescue Officer'} Mode</strong></span>
+          </span>
+          <Link
+            to={user?.role === 'admin' ? '/admin' : '/rescue'}
+            className="text-cyan-400 hover:text-cyan-300 font-bold underline text-[11px]"
+          >
+            Return to {user?.role === 'admin' ? 'Command Center' : 'Tactical HQ'} &rarr;
+          </Link>
+        </div>
+      )}
+
       <Navbar />
       <main className="flex-1 pb-16 lg:pb-0">
         <Outlet />

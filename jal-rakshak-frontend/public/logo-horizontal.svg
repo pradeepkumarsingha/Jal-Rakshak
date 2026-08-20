@@ -1,0 +1,99 @@
+<svg width="400" height="120" viewBox="0 0 400 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Shield Border Gradient -->
+    <linearGradient id="hShieldGrad" x1="15" y1="10" x2="105" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#00a8ff" />
+      <stop offset="50%" stopColor="#0066cc" />
+      <stop offset="100%" stopColor="#003380" />
+    </linearGradient>
+
+    <!-- Water Droplet Gradient -->
+    <linearGradient id="hDropGrad" x1="38" y1="36" x2="78" y2="82" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#38bdf8" />
+      <stop offset="40%" stopColor="#0284c7" />
+      <stop offset="100%" stopColor="#0369a1" />
+    </linearGradient>
+
+    <!-- Leaves Gradient -->
+    <linearGradient id="hLeafGrad" x1="10" y1="45" x2="30" y2="75" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#4ade80" />
+      <stop offset="50%" stopColor="#16a34a" />
+      <stop offset="100%" stopColor="#15803d" />
+    </linearGradient>
+
+    <!-- Bottom Wave Gradient -->
+    <linearGradient id="hWaveGrad" x1="10" y1="88" x2="110" y2="102" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#0284c7" />
+      <stop offset="100%" stopColor="#0369a1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Left Shield Emblem Group -->
+  <g transform="translate(10, 5) scale(0.95)">
+    <!-- Hexagonal Shield -->
+    <path
+      d="M60 8 L98 22 C98 22 102 60 98 72 C94 84 76 98 60 106 C44 98 26 84 22 72 C18 60 22 22 22 22 L60 8 Z"
+      fill="#f0f9ff"
+      stroke="url(#hShieldGrad)"
+      stroke-width="4.5"
+      stroke-linejoin="round"
+    />
+
+    <!-- Early Warning Waves -->
+    <path d="M44 26 C49 22 71 22 76 26" fill="none" stroke="#0284c7" stroke-width="2.8" stroke-linecap="round" />
+    <path d="M49 32 C53 29 67 29 71 32" fill="none" stroke="#0284c7" stroke-width="2.4" stroke-linecap="round" />
+
+    <!-- Circuit Sensor Traces -->
+    <path d="M32 36 L38 36 L38 48 L32 48" fill="none" stroke="#0284c7" stroke-width="2" stroke-linecap="round" />
+    <circle cx="32" cy="36" r="2.2" fill="#0284c7" />
+    <circle cx="32" cy="48" r="2.2" fill="#0284c7" />
+    <path d="M88 36 L82 36 L82 48 L88 48" fill="none" stroke="#0284c7" stroke-width="2" stroke-linecap="round" />
+    <circle cx="88" cy="36" r="2.2" fill="#0284c7" />
+    <circle cx="88" cy="48" r="2.2" fill="#0284c7" />
+
+    <!-- Central Water Droplet -->
+    <path
+      d="M60 38 C60 38 78 60 78 72 C78 82 70 90 60 90 C50 90 42 82 42 72 C42 60 60 38 60 38 Z"
+      fill="url(#hDropGrad)"
+      stroke="#ffffff"
+      stroke-width="1.8"
+    />
+
+    <!-- Location Pin inside Drop -->
+    <path d="M60 56 C56 56 53 59 53 63 C53 67.5 60 75 60 75 C60 75 67 67.5 67 63 C67 59 64 56 60 56 Z" fill="#ffffff" />
+    <circle cx="60" cy="62" r="2.6" fill="#0284c7" />
+
+    <!-- Wave Ripple -->
+    <path d="M46 76 C50 73 54 77 60 74 C66 71 70 75 74 74" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" />
+
+    <!-- Green Leaves -->
+    <path d="M16 48 C14 36 28 34 28 34 C28 34 30 46 16 48 Z" fill="url(#hLeafGrad)" stroke="#ffffff" stroke-width="0.8" />
+    <path d="M10 60 C6 48 22 45 22 45 C22 45 26 58 10 60 Z" fill="url(#hLeafGrad)" stroke="#ffffff" stroke-width="0.8" />
+    <path d="M18 70 C10 60 26 56 26 56 C26 56 28 68 18 70 Z" fill="url(#hLeafGrad)" stroke="#ffffff" stroke-width="0.8" />
+
+    <!-- Bottom Wave Ribbons -->
+    <path d="M12 82 C28 98 52 86 60 92 C68 98 92 88 108 82 C94 100 68 98 60 94 C52 90 28 102 12 82 Z" fill="url(#hWaveGrad)" />
+    <path d="M20 92 C34 105 52 96 60 100 C68 104 86 98 100 92 C88 106 68 106 60 102 C52 98 34 108 20 92 Z" fill="#22c55e" />
+  </g>
+
+  <!-- Typography Right Side -->
+  <g transform="translate(130, 20)">
+    <!-- Wordmark "Jal Rakshak" -->
+    <text x="0" y="44" font-family="'Segoe UI', 'Poppins', Arial, sans-serif" font-weight="900" font-size="44" fill="#0284c7" letter-spacing="-1">Jal</text>
+    <text x="65" y="44" font-family="'Segoe UI', 'Poppins', Arial, sans-serif" font-weight="900" font-size="44" fill="#0f172a" letter-spacing="-1">Rakshak</text>
+
+    <!-- AI Badge -->
+    <rect x="238" y="16" width="30" height="20" rx="6" fill="#0284c7" />
+    <text x="245" y="31" font-family="'Segoe UI', Arial, sans-serif" font-weight="800" font-size="12" fill="#ffffff">AI</text>
+
+    <!-- Divider Line -->
+    <line x1="0" y1="58" x2="260" y2="58" stroke="#0284c7" stroke-width="2" stroke-linecap="round" />
+    <circle cx="130" cy="58" r="3" fill="#22c55e" />
+
+    <!-- Tagline: PREDICT. PROTECT. RESPOND. -->
+    <text x="0" y="74" font-family="'Segoe UI', Arial, sans-serif" font-weight="800" font-size="11" fill="#0369a1" letter-spacing="2.5">PREDICT. PROTECT. RESPOND.</text>
+
+    <!-- Sub-tagline -->
+    <text x="0" y="88" font-family="'Segoe UI', Arial, sans-serif" font-weight="700" font-size="9" fill="#64748b" letter-spacing="1">AI-POWERED FLOOD INTELLIGENCE</text>
+  </g>
+</svg>
