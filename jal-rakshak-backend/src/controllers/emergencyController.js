@@ -1,13 +1,14 @@
 const mongoose = require('mongoose');
 const EmergencyRequest = require('../models/EmergencyRequest');
 const RescueTeam = require('../models/RescueTeam');
+const RescueAssignment = require('../models/RescueAssignment');
+const AuditLog = require('../models/AuditLog');
 const { calculateEmergencyPriority } = require('../services/priorityService');
 const { aiService } = require('../services');
 const { ErrorResponse } = require('../middleware/errorHandler');
-const { successResponse, errorResponse } = require('../utils/helpers');
+const { successResponse } = require('../utils/helpers');
+const { notifyNewEmergency, notifyEmergencyAssigned } = require('../socket');
 const logger = require('../utils/logger');
-
-const isDbReady = () => mongoose.connection.readyState === 1;
 
 /**
  * @desc    Create an Emergency SOS Distress Request
@@ -43,10 +44,10 @@ const createEmergencyRequest = async (req, res, next) => {
       altPhone,
     } = req.body;
 
-    let coords = [85.8830, 20.4625];
+    let coords = [85.8245, 20.2961];
     if (longitude !== undefined && latitude !== undefined) {
       coords = [Number(longitude), Number(latitude)];
-    } else if (coordinates && Array.isArray(coordinates)) {
+    } else if (coordinates && Array.isArray(coordinates) && coordinates.length >= 2) {
       coords = [Number(coordinates[0]), Number(coordinates[1])];
     } else if (lat !== undefined && lng !== undefined) {
       coords = [Number(lng), Number(lat)];
@@ -61,125 +62,154 @@ const createEmergencyRequest = async (req, res, next) => {
       adults: Math.max(1, resolvedPeople - Number(childrenCount || 0) - Number(elderlyCount || 0)),
     };
 
-    // 1. Calculate Priority using AI service / scoring engine
-    let priorityScore = 88;
-    let priorityLevel = 'CRITICAL';
+    // Calculate priority using priority service
+    let priorityScore = 75;
+    let priorityLevel = 'HIGH';
 
     try {
-      const aiPriority = await (aiService.calculateEmergencyPriority || aiService.calculatePriority)({
+      const priorityResult = calculateEmergencyPriority({
         totalPeople: resolvedPeople,
         victims: resolvedVictims,
         medicalEmergency: Boolean(medicalEmergency),
-        waterSeverity: waterSeverity || 'SEVERE',
-        waterDepth: waterDepth || '1.5m',
+        waterSeverity: waterSeverity || 'HIGH',
+        waterDepth: waterDepth || '1.2m',
         roadAccess: roadAccess || 'BLOCKED',
       });
-      if (aiPriority) {
-        priorityScore = aiPriority.priorityScore || 88;
-        priorityLevel = aiPriority.priorityLevel || 'CRITICAL';
-      }
-    } catch (aiErr) {
-      const fallback = calculateEmergencyPriority({
-        totalPeople: resolvedPeople,
-        victims: resolvedVictims,
-        medicalEmergency: Boolean(medicalEmergency),
-        waterSeverity: waterSeverity || 'SEVERE',
-        waterDepth: waterDepth || '1.5m',
-        roadAccess: roadAccess || 'BLOCKED',
-      });
-      priorityScore = fallback.priorityScore;
-      priorityLevel = fallback.priorityLevel;
+      priorityScore = priorityResult.priorityScore || 75;
+      priorityLevel = priorityResult.priorityLevel || 'HIGH';
+    } catch (err) {
+      logger.warn(`Priority calculation fallback used: ${err.message}`);
     }
 
-    if (!isDbReady()) {
-      logger.info('Database offline. Creating in-memory emergency SOS beacon.');
-      const obj = {
-        _id: 'SOS-' + Date.now().toString(36),
-        id: 'SOS-' + Date.now().toString(36),
-        requestType: requestType || 'RESCUE_REQUIRED',
-        location: { type: 'Point', coordinates: coords },
-        address: address || 'Near Bidanasi, Cuttack',
-        totalPeople: resolvedPeople,
-        childrenCount: Number(childrenCount || resolvedVictims.children || 0),
-        elderlyCount: Number(elderlyCount || resolvedVictims.elderly || 0),
-        medicalEmergency: Boolean(medicalEmergency),
-        waterSeverity: (waterSeverity || 'SEVERE').toUpperCase(),
-        waterDepth: waterDepth || '1.5 meters',
-        roadAccess: (roadAccess || 'BLOCKED').toUpperCase(),
-        description: description || 'Stranded on upper floor due to rapid flood surge',
-        imageUrl: imageUrl || '',
-        priorityScore,
-        priorityLevel,
-        status: 'DISPATCHED',
-        lat: coords[1],
-        lng: coords[0],
-        createdAt: new Date(),
-        safetyGuidance: 'Stay on the highest level of the building. Do not enter floodwaters. A rescue team has been alerted.',
-        disclaimer: 'Priority score supports human decision-making and triage only. It is not an autonomous life-or-death decision.',
-      };
-      return successResponse(res, obj, 'Emergency SOS request created successfully', 201);
-    }
+    const userId = req.user ? req.user._id || req.user.id : null;
 
     const emergency = await EmergencyRequest.create({
-      user: req.user ? req.user.id || req.user._id : null,
+      user: userId,
       requestType: requestType || 'RESCUE_REQUIRED',
       location: {
         type: 'Point',
         coordinates: coords,
       },
-      address: address || 'Near Naraj, Cuttack',
+      address: address || 'Bhubaneswar, Odisha',
       totalPeople: resolvedPeople,
       childrenCount: Number(childrenCount || resolvedVictims.children || 0),
       elderlyCount: Number(elderlyCount || resolvedVictims.elderly || 0),
       disabilityCount: Number(disabilityCount || 0),
       medicalEmergency: Boolean(medicalEmergency),
-      waterSeverity: (waterSeverity || 'SEVERE').toUpperCase(),
-      waterDepth: waterDepth || '1.5 meters',
+      waterSeverity: (waterSeverity || 'HIGH').toUpperCase(),
       roadAccess: (roadAccess || 'BLOCKED').toUpperCase(),
-      description: description || 'Family trapped on upper floor',
-      imageUrl: imageUrl || '',
+      description: description || 'Urgent flood rescue required',
+      image: imageUrl ? { secureUrl: imageUrl } : null,
       priorityScore,
       priorityLevel,
       status: 'PENDING',
       contact: {
-        name: (contact && contact.name) || contactName || (req.user ? req.user.fullName : 'Ramesh Mohanty'),
+        name: (contact && contact.name) || contactName || (req.user ? req.user.fullName : 'Citizen Distress'),
         phone: (contact && contact.phone) || contactPhone || (req.user ? req.user.phone : '+919876543210'),
-        altPhone: (contact && contact.altPhone) || altPhone || '+919123456789',
+        altPhone: (contact && contact.altPhone) || altPhone || '',
       },
+      statusHistory: [
+        {
+          status: 'PENDING',
+          changedBy: userId,
+          changedAt: new Date(),
+          note: 'Distress beacon activated',
+        },
+      ],
     });
 
-    const obj = emergency.toObject();
-    obj.lat = coords[1];
-    obj.lng = coords[0];
-    obj.id = emergency._id;
-    obj.priorityScore = priorityScore;
-    obj.priorityLevel = priorityLevel;
-    obj.safetyGuidance = 'Stay on the highest level of the building. Do not enter floodwaters. A rescue team has been alerted.';
-    obj.disclaimer = 'Priority score supports human decision-making and triage only. It is not an autonomous life-or-death decision.';
+    // Create Audit Log
+    await AuditLog.create({
+      user: userId,
+      actorRole: req.user?.role || 'citizen',
+      action: 'EMERGENCY_CREATED',
+      entityType: 'EmergencyRequest',
+      entityId: emergency._id,
+      details: {
+        requestId: emergency.requestId,
+        priorityScore,
+        priorityLevel,
+        totalPeople: resolvedPeople,
+        medicalEmergency: Boolean(medicalEmergency),
+      },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    }).catch((err) => logger.warn(`AuditLog creation warning: ${err.message}`));
 
-    return successResponse(res, obj, 'Emergency SOS request created successfully', 201);
+    // Emit Socket.IO notification
+    notifyNewEmergency(emergency);
+
+    const safeResponse = {
+      id: emergency._id,
+      emergencyId: emergency._id,
+      requestId: emergency.requestId,
+      status: emergency.status,
+      priorityScore: emergency.priorityScore,
+      priorityLevel: emergency.priorityLevel,
+      location: {
+        latitude: coords[1],
+        longitude: coords[0],
+        address: emergency.address,
+      },
+      totalPeople: emergency.totalPeople,
+      createdAt: emergency.createdAt,
+      safetyGuidance: 'Stay on the highest structure possible. Avoid moving water. A rescue unit has been alerted.',
+    };
+
+    return res.status(201).json({
+      success: true,
+      message: 'Emergency SOS request registered and broadcasted to command center.',
+      data: safeResponse,
+    });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    Get Current Citizen's Emergency Requests
+ * @desc    Get Current Citizen's Own Emergency Requests
  * @route   GET /api/v1/emergency/my
  * @access  Private (Citizen)
  */
 const getMyEmergencies = async (req, res, next) => {
   try {
-    const userId = req.user ? req.user.id || req.user._id : null;
+    const userId = req.user ? req.user._id || req.user.id : null;
     if (!userId) {
-      return next(new ErrorResponse('Not authorized to access emergency requests', 401));
+      return next(new ErrorResponse('Not authorized to access emergency records', 401));
     }
 
     const emergencies = await EmergencyRequest.find({ user: userId })
-      .populate('assignedTeam')
+      .populate('assignedTeam', 'teamName teamCode status phone')
+      .populate('activeAssignment')
       .sort({ createdAt: -1 });
 
-    return successResponse(res, emergencies, 'Your emergency requests retrieved');
+    const formatted = emergencies.map((e) => ({
+      emergencyId: e._id,
+      id: e._id,
+      requestId: e.requestId,
+      status: e.status,
+      priorityLevel: e.priorityLevel,
+      priorityScore: e.priorityScore,
+      location: {
+        latitude: e.location?.coordinates ? e.location.coordinates[1] : null,
+        longitude: e.location?.coordinates ? e.location.coordinates[0] : null,
+        address: e.address,
+      },
+      totalPeople: e.totalPeople,
+      medicalEmergency: e.medicalEmergency,
+      assignedTeam: e.assignedTeam
+        ? {
+            teamName: e.assignedTeam.teamName,
+            teamCode: e.assignedTeam.teamCode,
+            status: e.assignedTeam.status,
+          }
+        : null,
+      estimatedEtaMinutes: e.activeAssignment?.estimatedEtaMinutes || null,
+      createdAt: e.createdAt,
+      statusHistory: e.statusHistory,
+    }));
+
+    return successResponse(res, formatted, 'Your emergency requests retrieved');
   } catch (error) {
     next(error);
   }
@@ -188,13 +218,13 @@ const getMyEmergencies = async (req, res, next) => {
 /**
  * @desc    Get all Emergency Requests (Admin & Rescue)
  * @route   GET /api/v1/emergency/requests
- * @access  Private (Admin & Rescue) / Public
+ * @access  Private (Admin & Rescue)
  */
 const getAllRequests = async (req, res, next) => {
   try {
     const { status, priority, priorityLevel } = req.query;
-
     const query = {};
+
     if (status && status !== 'ALL') {
       query.status = status.toUpperCase();
     }
@@ -202,9 +232,9 @@ const getAllRequests = async (req, res, next) => {
       query.priorityLevel = (priority || priorityLevel).toUpperCase();
     }
 
-    // Sort by priorityScore descending, then createdAt ascending
     const requests = await EmergencyRequest.find(query)
-      .populate('assignedTeam')
+      .populate('assignedTeam', 'teamName teamCode status vehicles resources')
+      .populate('activeAssignment')
       .sort({ priorityScore: -1, createdAt: 1 });
 
     const formatted = requests.map((r) => {
@@ -226,16 +256,26 @@ const getAllRequests = async (req, res, next) => {
 /**
  * @desc    Get Single Emergency Request by ID
  * @route   GET /api/v1/emergency/:id
- * @access  Private / Public
+ * @access  Private
  */
 const getRequestById = async (req, res, next) => {
   try {
-    const isObjectId = req.params.id.match(/^[0-9a-fA-F]{24}$/);
+    const isObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
     const query = isObjectId ? { _id: req.params.id } : { requestId: req.params.id };
 
-    const emergency = await EmergencyRequest.findOne(query).populate('assignedTeam');
+    const emergency = await EmergencyRequest.findOne(query)
+      .populate('assignedTeam', 'teamName teamCode status vehicles resources phone')
+      .populate('activeAssignment');
+
     if (!emergency) {
-      return next(new ErrorResponse(`Emergency request not found with id ${req.params.id}`, 404));
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: `Emergency request not found with id ${req.params.id}`,
+          details: null,
+        },
+      });
     }
 
     const obj = emergency.toObject();
@@ -252,100 +292,164 @@ const getRequestById = async (req, res, next) => {
 };
 
 /**
- * @desc    Assign Rescue Team to Emergency Request
+ * @desc    Admin Assigns Real Rescue Team to Emergency Request
  * @route   POST /api/v1/emergency/:id/assign
  * @access  Private (Admin)
  */
 const assignTeam = async (req, res, next) => {
   try {
-    const { rescueTeamId, teamId, etaMinutes } = req.body;
-    const targetTeamId = rescueTeamId || teamId;
+    const { rescueTeamId, estimatedEtaMinutes, note } = req.body;
 
-    const isObjectId = req.params.id.match(/^[0-9a-fA-F]{24}$/);
+    if (!rescueTeamId) {
+      return res.status(422).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'rescueTeamId is required to assign an emergency',
+          details: null,
+        },
+      });
+    }
+
+    const isObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
     const query = isObjectId ? { _id: req.params.id } : { requestId: req.params.id };
 
     const emergency = await EmergencyRequest.findOne(query);
     if (!emergency) {
-      return next(new ErrorResponse(`Emergency request not found with id ${req.params.id}`, 404));
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: `Emergency request not found with id ${req.params.id}`,
+          details: null,
+        },
+      });
     }
 
-    let team = null;
-    if (targetTeamId) {
-      const isTeamObjectId = String(targetTeamId).match(/^[0-9a-fA-F]{24}$/);
-      team = await RescueTeam.findOne(isTeamObjectId ? { _id: targetTeamId } : { teamId: targetTeamId });
+    if (['CLOSED', 'RESCUED', 'CANCELLED'].includes(emergency.status)) {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'INVALID_EMERGENCY_STATE',
+          message: `Cannot assign emergency with status ${emergency.status}`,
+          details: null,
+        },
+      });
     }
 
+    // Validate rescue team in MongoDB
+    const isTeamObjectId = mongoose.Types.ObjectId.isValid(rescueTeamId);
+    const team = await RescueTeam.findOne(isTeamObjectId ? { _id: rescueTeamId } : { teamCode: rescueTeamId });
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: `Rescue team not found with id ${rescueTeamId}`,
+          details: null,
+        },
+      });
+    }
+
+    if (!team.isActive) {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'TEAM_INACTIVE',
+          message: 'Selected rescue team is marked inactive',
+          details: null,
+        },
+      });
+    }
+
+    const now = new Date();
+    const eta = Number(estimatedEtaMinutes) || 18;
+    const adminUser = req.user;
+
+    // Create RescueAssignment document
+    const assignment = await RescueAssignment.create({
+      emergencyRequest: emergency._id,
+      rescueTeam: team._id,
+      assignedBy: adminUser ? adminUser._id || adminUser.id : null,
+      assignmentStatus: 'ASSIGNED',
+      assignedAt: now,
+      estimatedEtaMinutes: eta,
+      notes: note
+        ? [
+            {
+              message: note,
+              createdBy: adminUser ? adminUser._id || adminUser.id : null,
+              createdAt: now,
+            },
+          ]
+        : [],
+      statusHistory: [
+        {
+          status: 'ASSIGNED',
+          changedBy: adminUser ? adminUser._id || adminUser.id : null,
+          changedAt: now,
+          note: note || `Assigned to ${team.teamName} by administrator`,
+        },
+      ],
+    });
+
+    // Update EmergencyRequest
     emergency.status = 'ASSIGNED';
-    emergency.assignedAt = new Date();
-    emergency.etaMinutes = etaMinutes || 15;
-    if (team) {
-      emergency.assignedTeam = team._id;
-      emergency.assignedTeamName = team.teamName || team.name;
-      team.status = 'DEPLOYED';
-      await team.save();
-    }
-
+    emergency.assignedTeam = team._id;
+    emergency.activeAssignment = assignment._id;
+    emergency.statusHistory.push({
+      status: 'ASSIGNED',
+      changedBy: adminUser ? adminUser._id || adminUser.id : null,
+      changedAt: now,
+      note: note || `Assigned to ${team.teamName}`,
+    });
     await emergency.save();
 
-    return successResponse(
-      res,
-      {
+    // Update RescueTeam status
+    team.status = 'DEPLOYED';
+    await team.save();
+
+    // Create Audit Log
+    await AuditLog.create({
+      user: adminUser ? adminUser._id || adminUser.id : null,
+      actorRole: adminUser?.role || 'admin',
+      action: 'EMERGENCY_ASSIGNED',
+      entityType: 'EmergencyRequest',
+      entityId: emergency._id,
+      details: {
         emergencyId: emergency._id,
-        status: emergency.status,
-        assignedTeam: emergency.assignedTeam,
-        assignedTeamName: emergency.assignedTeamName,
-        assignedAt: emergency.assignedAt,
+        assignmentId: assignment._id,
+        teamId: team._id,
+        teamName: team.teamName,
+        teamCode: team.teamCode,
+        etaMinutes: eta,
+        note,
       },
-      'Rescue team assigned successfully'
-    );
-  } catch (error) {
-    next(error);
-  }
-};
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    }).catch((err) => logger.warn(`AuditLog creation warning: ${err.message}`));
 
-/**
- * @desc    Update Emergency Status (PENDING -> ASSIGNED -> IN_PROGRESS / DISPATCHED -> EN_ROUTE -> ON_SCENE -> RESCUED -> CLOSED)
- * @route   PATCH /api/v1/emergency/:id/status
- * @access  Private (Rescue / Admin)
- */
-const updateStatus = async (req, res, next) => {
-  try {
-    const { status, note, etaMinutes } = req.body;
+    // Emit Socket.IO events
+    notifyEmergencyAssigned(emergency, assignment, team);
 
-    const isObjectId = req.params.id.match(/^[0-9a-fA-F]{24}$/);
-    const query = isObjectId ? { _id: req.params.id } : { requestId: req.params.id };
-
-    const emergency = await EmergencyRequest.findOne(query);
-    if (!emergency) {
-      return next(new ErrorResponse(`Emergency request not found with id ${req.params.id}`, 404));
-    }
-
-    if (status) {
-      const normStatus = status.toUpperCase();
-      emergency.status = normStatus;
-      if (normStatus === 'RESCUED') {
-        emergency.rescuedAt = new Date();
-      } else if (normStatus === 'CLOSED') {
-        emergency.closedAt = new Date();
-      }
-    }
-    if (etaMinutes !== undefined) {
-      emergency.etaMinutes = etaMinutes;
-    }
-
-    await emergency.save();
-
-    return successResponse(
-      res,
-      {
+    return res.status(200).json({
+      success: true,
+      message: 'Emergency request assigned to rescue team.',
+      data: {
         emergencyId: emergency._id,
-        status: emergency.status,
-        note: note || '',
-        rescuedAt: emergency.rescuedAt,
-        closedAt: emergency.closedAt,
+        assignmentId: assignment._id,
+        status: 'ASSIGNED',
+        assignedTeam: {
+          id: team._id,
+          teamName: team.teamName,
+          teamCode: team.teamCode,
+          status: team.status,
+        },
+        estimatedEtaMinutes: eta,
+        assignedAt: now.toISOString(),
       },
-      `Emergency status updated to ${emergency.status}`
-    );
+    });
   } catch (error) {
     next(error);
   }
@@ -359,12 +463,24 @@ const updateStatus = async (req, res, next) => {
 const addNote = async (req, res, next) => {
   try {
     const { note } = req.body;
-    const isObjectId = req.params.id.match(/^[0-9a-fA-F]{24}$/);
+    const isObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
     const query = isObjectId ? { _id: req.params.id } : { requestId: req.params.id };
 
     const emergency = await EmergencyRequest.findOne(query);
     if (!emergency) {
       return next(new ErrorResponse(`Emergency request not found with id ${req.params.id}`, 404));
+    }
+
+    if (emergency.activeAssignment) {
+      await RescueAssignment.findByIdAndUpdate(emergency.activeAssignment, {
+        $push: {
+          notes: {
+            message: note,
+            createdBy: req.user ? req.user._id || req.user.id : null,
+            createdAt: new Date(),
+          },
+        },
+      });
     }
 
     return successResponse(
@@ -377,6 +493,48 @@ const addNote = async (req, res, next) => {
       },
       'Note attached to emergency request'
     );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Update Emergency Status (Admin / Rescue fallback)
+ * @route   PATCH /api/v1/emergency/:id/status
+ * @access  Private (Rescue / Admin)
+ */
+const updateStatus = async (req, res, next) => {
+  try {
+    const isObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
+    const query = isObjectId ? { _id: req.params.id } : { requestId: req.params.id };
+
+    const emergency = await EmergencyRequest.findOne(query);
+    if (!emergency) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: `Emergency request not found with id ${req.params.id}`, details: null },
+      });
+    }
+
+    if (emergency.activeAssignment) {
+      req.params.assignmentId = String(emergency.activeAssignment);
+      const { updateAssignmentStatus } = require('./rescueController');
+      return updateAssignmentStatus(req, res, next);
+    }
+
+    const { status, note } = req.body;
+    if (status) {
+      emergency.status = status.toUpperCase();
+      emergency.statusHistory.push({
+        status: status.toUpperCase(),
+        changedBy: req.user ? req.user._id || req.user.id : null,
+        changedAt: new Date(),
+        note: note || `Status updated to ${status}`,
+      });
+      await emergency.save();
+    }
+
+    return successResponse(res, emergency, `Emergency status updated to ${emergency.status}`);
   } catch (error) {
     next(error);
   }

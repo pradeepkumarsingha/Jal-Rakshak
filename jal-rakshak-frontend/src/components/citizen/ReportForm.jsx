@@ -2,234 +2,317 @@ import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useFloodData } from '../../context/FloodDataContext'
+import { reportApi } from '../../services/reportApi'
 import { useAlert } from '../../context/AlertContext'
 import { useAuth } from '../../context/AuthContext'
 import ImageUpload from './ImageUpload'
-import { WATER_DEPTH_LEVELS } from '../../utils/constants'
-import { MapPin, Locate, Send, AlertTriangle, Users, CheckCircle2 } from 'lucide-react'
+import {
+  MapPin,
+  Locate,
+  Send,
+  AlertTriangle,
+  CheckCircle2,
+  Sparkles,
+  ShieldAlert,
+  Clock,
+  Info,
+} from 'lucide-react'
 
 const reportSchema = z.object({
-  location: z.string().min(3, 'Location description must be at least 3 characters'),
-  category: z.string().min(1, 'Please select a hazard category'),
-  waterDepth: z.string().min(1, 'Please select water depth level'),
-  description: z.string().min(10, 'Please provide details (at least 10 characters)'),
-  trappedPeople: z.number().min(0),
-  needsBoat: z.boolean().optional(),
+  address: z.string().min(3, 'Address / location must be at least 3 characters'),
+  waterLevel: z.enum(['LOW', 'MEDIUM', 'HIGH', 'SEVERE']),
+  roadStatus: z.enum(['OPEN', 'PARTIALLY_BLOCKED', 'BLOCKED', 'UNKNOWN']),
+  description: z.string().min(6, 'Please provide brief details of the situation'),
 })
 
 export default function ReportForm({ onSuccess }) {
-  const { addReport } = useFloodData()
   const { showToast } = useAlert()
   const { user } = useAuth()
+  const [selectedImage, setSelectedImage] = useState(null)
   const [submitting, setSubmitting] = useState(false)
-  const [selectedDepth, setSelectedDepth] = useState('0.8 meters (Knee Level)')
-  const [aiAnalysis, setAiAnalysis] = useState(null)
+  const [submittedReport, setSubmittedReport] = useState(null)
   const [gpsLoading, setGpsLoading] = useState(false)
+  const [coords, setCoords] = useState({ lat: 20.2961, lng: 85.8245 })
 
   const {
     register,
     handleSubmit,
     setValue,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(reportSchema),
     defaultValues: {
-      location: user?.location?.address || '',
-      category: 'Waterlogged Main Arterial Road',
-      waterDepth: '0.8 meters (Knee Level)',
-      description: '',
-      trappedPeople: 0,
-      needsBoat: false,
+      address: user?.location?.address || 'Bhubaneswar, Odisha',
+      waterLevel: 'HIGH',
+      roadStatus: 'BLOCKED',
+      description: 'Flood water entering residential street. Vehicles unable to pass.',
     },
   })
+
+  const selectedWaterLevel = watch('waterLevel')
+  const selectedRoadStatus = watch('roadStatus')
 
   const handleLocateMe = () => {
     setGpsLoading(true)
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setValue('location', `GPS Pin: ${pos.coords.latitude.toFixed(4)}° N, ${pos.coords.longitude.toFixed(4)}° E`)
+          const lat = Number(pos.coords.latitude.toFixed(5))
+          const lng = Number(pos.coords.longitude.toFixed(5))
+          setCoords({ lat, lng })
+          setValue('address', `GPS: ${lat}° N, ${lng}° E (${pos.coords.accuracy.toFixed(0)}m accuracy)`)
           setGpsLoading(false)
         },
-        () => {
+        (err) => {
+          console.warn('GPS location error:', err.message)
           setGpsLoading(false)
         },
-        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       )
     } else {
       setGpsLoading(false)
     }
   }
 
-  const handleAiAnalyzed = (analysis) => {
-    setAiAnalysis(analysis)
-    setValue('waterDepth', analysis.depthCategory)
-    setSelectedDepth(analysis.depthCategory)
-    if (analysis.detectedWaterDepthMeters >= 1.0) {
-      setValue('needsBoat', true)
-    }
-  }
-
   const onSubmit = async (data) => {
     setSubmitting(true)
     try {
-      const newRep = addReport({
-        ...data,
-        user: user?.name || 'Concerned Citizen',
-        lat: 20.4782 + (Math.random() - 0.5) * 0.02,
-        lng: 85.8621 + (Math.random() - 0.5) * 0.02,
-        imageUrl: 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80',
-      })
+      const formData = new FormData()
+      formData.append('latitude', coords.lat)
+      formData.append('longitude', coords.lng)
+      formData.append('address', data.address)
+      formData.append('waterLevel', data.waterLevel)
+      formData.append('roadStatus', data.roadStatus)
+      formData.append('description', data.description)
+
+      if (selectedImage) {
+        formData.append('image', selectedImage)
+      }
+
+      const response = await reportApi.submitReport(formData)
+      const reportResult = response.data || response
+
+      setSubmittedReport(reportResult)
 
       showToast({
-        title: 'Report Broadcasted Successfully!',
-        message: 'Your hazard submission is transmitted to the Disaster Control Room.',
+        title: 'Report Submitted for Verification',
+        message: 'Your flood observation has been stored and queued for admin verification.',
         type: 'success',
       })
 
-      reset()
-      if (onSuccess) onSuccess(newRep)
+      if (onSuccess) onSuccess(reportResult)
+    } catch (err) {
+      showToast({
+        title: 'Report Submission Failed',
+        message: err.response?.data?.error?.message || 'Failed to submit report. Please try again.',
+        type: 'error',
+      })
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100 space-y-5">
-      <div>
-        <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-amber-500" />
-          Crowd-Source Flood Hazard Incident
-        </h3>
-        <p className="text-xs text-slate-500 mt-1">
-          Help authorities and neighbours by reporting submerged roads, rising levels, and trapped residents.
-        </p>
-      </div>
-
-      {/* Location Input */}
-      <div>
-        <label className="text-xs font-bold text-slate-700 block mb-1">
-          Hazard Location / Nearest Landmark *
-        </label>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              {...register('location')}
-              placeholder="e.g., Bidanasi Embankment, Sluice Gate No. 3"
-              className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-            />
+    <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100 space-y-5">
+      {submittedReport ? (
+        /* Submission Success / Result Card */
+        <div className="space-y-4">
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-extrabold text-sm text-emerald-900">
+                Flood Hazard Report Queued (Status: PENDING)
+              </h4>
+              <p className="text-xs text-emerald-700 mt-0.5">
+                Report ID: <strong className="font-mono">{submittedReport.reportId || submittedReport.id}</strong>
+              </p>
+            </div>
           </div>
+
+          {submittedReport.image?.secureUrl && (
+            <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-950">
+              <img
+                src={submittedReport.image.secureUrl}
+                alt="Uploaded report"
+                className="w-full h-48 object-cover"
+              />
+              <div className="p-2.5 text-[11px] text-slate-300 flex items-center justify-between">
+                <span>Cloudinary Verified Storage</span>
+                <span className="font-mono text-emerald-400">Secure HTTPS</span>
+              </div>
+            </div>
+          )}
+
+          {submittedReport.aiAnalysis && (
+            <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 text-white space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-cyan-400 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-cyan-400" />
+                  <span>Automated AI Depth Assessment</span>
+                </span>
+                <span className="text-[10px] font-mono uppercase bg-slate-800 px-2 py-0.5 rounded text-slate-300">
+                  {submittedReport.aiAnalysis.status}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                <div className="p-2.5 bg-slate-800/70 rounded-xl">
+                  <span className="text-[10px] text-slate-400 block">AI Severity</span>
+                  <strong className="text-amber-400 font-bold text-xs">{submittedReport.aiAnalysis.severity || 'UNKNOWN'}</strong>
+                </div>
+                <div className="p-2.5 bg-slate-800/70 rounded-xl">
+                  <span className="text-[10px] text-slate-400 block">Road Condition</span>
+                  <strong className="text-rose-400 font-bold text-xs">{submittedReport.aiAnalysis.roadCondition || 'UNKNOWN'}</strong>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-amber-300/90 italic flex items-center gap-1 pt-1">
+                <Info className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                <span>AI image analysis is an estimate and requires administrator verification.</span>
+              </p>
+            </div>
+          )}
+
           <button
             type="button"
-            onClick={handleLocateMe}
-            disabled={gpsLoading}
-            className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 shrink-0 transition"
-            title="Detect current GPS location"
+            onClick={() => {
+              setSubmittedReport(null)
+              setSelectedImage(null)
+              reset()
+            }}
+            className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
           >
-            <Locate className={`w-3.5 h-3.5 text-brand-600 ${gpsLoading ? 'animate-spin' : ''}`} />
-            <span>GPS Pin</span>
+            Submit Another Ground Report
           </button>
         </div>
-        {errors.location && <p className="text-red-600 text-[11px] mt-1">{errors.location.message}</p>}
-      </div>
+      ) : (
+        /* Report Form */
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <div>
+            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Report Flood Hazard & Road Waterlogging
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Submit observed water levels and road obstructions to assist emergency teams and alert neighbours.
+            </p>
+          </div>
 
-      {/* Hazard Category */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">Hazard Category *</label>
-          <select
-            {...register('category')}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs bg-white focus:ring-2 focus:ring-brand-500 outline-none"
+          {/* Location & GPS */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              Location / Landmark Address *
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  {...register('address')}
+                  placeholder="e.g., Bidanasi Embankment, Sluice Gate No. 3, Cuttack"
+                  className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-brand-500 outline-none"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleLocateMe}
+                disabled={gpsLoading}
+                className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 shrink-0 transition"
+                title="Detect GPS Pin"
+              >
+                <Locate className={`w-3.5 h-3.5 text-brand-600 ${gpsLoading ? 'animate-spin' : ''}`} />
+                <span>GPS Pin</span>
+              </button>
+            </div>
+            {errors.address && <p className="text-red-600 text-[11px] mt-1">{errors.address.message}</p>}
+          </div>
+
+          {/* Water Level Selector */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1.5">Water Level Severity *</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { id: 'LOW', label: 'LOW', desc: 'Ankle deep (< 0.3m)' },
+                { id: 'MEDIUM', label: 'MEDIUM', desc: 'Knee deep (~0.6m)' },
+                { id: 'HIGH', label: 'HIGH', desc: 'Waist deep (~1.0m)' },
+                { id: 'SEVERE', label: 'SEVERE', desc: 'Chest / Overhead (> 1.5m)' },
+              ].map((lvl) => (
+                <button
+                  key={lvl.id}
+                  type="button"
+                  onClick={() => setValue('waterLevel', lvl.id)}
+                  className={`p-2.5 rounded-xl border text-left transition ${
+                    selectedWaterLevel === lvl.id
+                      ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-400 text-amber-950 font-bold'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="text-xs font-bold">{lvl.label}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">{lvl.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Road Status */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1.5">Road Passability *</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { id: 'OPEN', label: 'OPEN', color: 'emerald' },
+                { id: 'PARTIALLY_BLOCKED', label: 'PARTIAL', color: 'amber' },
+                { id: 'BLOCKED', label: 'BLOCKED', color: 'red' },
+                { id: 'UNKNOWN', label: 'UNKNOWN', color: 'slate' },
+              ].map((rd) => (
+                <button
+                  key={rd.id}
+                  type="button"
+                  onClick={() => setValue('roadStatus', rd.id)}
+                  className={`p-2 rounded-xl border text-center transition ${
+                    selectedRoadStatus === rd.id
+                      ? 'bg-brand-50 border-brand-500 ring-2 ring-brand-400 text-brand-900 font-bold'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className="text-xs font-bold">{rd.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Photo Upload */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              Hazard Photo (Cloudinary Upload & AI Image Verification)
+            </label>
+            <ImageUpload onFileSelect={(file) => setSelectedImage(file)} />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Observation Details *</label>
+            <textarea
+              rows={3}
+              {...register('description')}
+              placeholder="Provide context on water flow speed, impassable vehicles, trapped elderly, or downed electrical lines..."
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-brand-500 outline-none"
+            />
+            {errors.description && <p className="text-red-600 text-[11px] mt-1">{errors.description.message}</p>}
+          </div>
+
+          {/* Submit button */}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-brand-600/30 disabled:opacity-50"
           >
-            <option value="Waterlogged Main Arterial Road">Waterlogged Main Arterial Road</option>
-            <option value="Embankment Seepage / Breach">Embankment Seepage / Breach</option>
-            <option value="Residential Area Submerged">Residential Area Submerged</option>
-            <option value="Bridge / Culvert Overtopping">Bridge / Culvert Overtopping</option>
-            <option value="Fallen Electric Pole / Live Wire Hazard">Fallen Electric Pole / Live Wire Hazard</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="text-xs font-bold text-slate-700 block mb-1">Stranded People (if any)</label>
-          <input
-            type="number"
-            {...register('trappedPeople', { valueAsNumber: true })}
-            placeholder="0"
-            min="0"
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-brand-500 outline-none"
-          />
-        </div>
-      </div>
-
-      {/* Water Depth Level Selector */}
-      <div>
-        <label className="text-xs font-bold text-slate-700 block mb-1.5">Observed Water Depth *</label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {WATER_DEPTH_LEVELS.map((w) => (
-            <button
-              key={w.id}
-              type="button"
-              onClick={() => {
-                setSelectedDepth(w.label)
-                setValue('waterDepth', w.label)
-              }}
-              className={`p-2.5 rounded-xl border text-left transition ${
-                selectedDepth.includes(w.id) || selectedDepth === w.label
-                  ? 'bg-brand-50 border-brand-500 ring-1 ring-brand-400 text-brand-900 font-bold'
-                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <div className="text-[11px] font-bold">{w.label}</div>
-              <div className="text-[10px] text-slate-500 mt-0.5">{w.desc}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Image Upload with AI Analysis */}
-      <div>
-        <label className="text-xs font-bold text-slate-700 block mb-1">Upload Photo (Optional but Recommended)</label>
-        <ImageUpload onImageAnalyzed={handleAiAnalyzed} />
-      </div>
-
-      {/* Description */}
-      <div>
-        <label className="text-xs font-bold text-slate-700 block mb-1">Incident Details & Observations *</label>
-        <textarea
-          rows={3}
-          {...register('description')}
-          placeholder="Describe water flow rate, impassable vehicles, trapped elderly, or any specific hazard..."
-          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-brand-500 outline-none"
-        />
-        {errors.description && <p className="text-red-600 text-[11px] mt-1">{errors.description.message}</p>}
-      </div>
-
-      {/* Checkbox */}
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="needsBoat"
-          {...register('needsBoat')}
-          className="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500"
-        />
-        <label htmlFor="needsBoat" className="text-xs font-semibold text-slate-700 cursor-pointer">
-          Urgent motorized rescue boat / inflatable raft required at this spot
-        </label>
-      </div>
-
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-brand-600/30"
-      >
-        <Send className="w-4 h-4" />
-        <span>{submitting ? 'Broadcasting Report...' : 'Submit Verified Hazard Report'}</span>
-      </button>
-    </form>
+            <Send className="w-4 h-4" />
+            <span>{submitting ? 'Uploading to Cloudinary & Analyzing...' : 'Transmit Verified Hazard Report'}</span>
+          </button>
+        </form>
+      )}
+    </div>
   )
 }

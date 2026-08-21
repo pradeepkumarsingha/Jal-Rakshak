@@ -1,16 +1,29 @@
 const mongoose = require('mongoose');
 const CitizenReport = require('../models/CitizenReport');
+const AuditLog = require('../models/AuditLog');
 const { ErrorResponse } = require('../middleware/errorHandler');
-const { successResponse, errorResponse } = require('../utils/helpers');
-const { aiService } = require('../services');
+const { successResponse } = require('../utils/helpers');
+const { cloudinaryService, hazardVerificationService } = require('../services');
+const { notifyNewReport, notifyReportUpdated } = require('../socket');
 const logger = require('../utils/logger');
 
 const isDbReady = () => mongoose.connection.readyState === 1;
 
 /**
+ * Severity ranking map for sorting pending reports
+ */
+const SEVERITY_RANK = {
+  SEVERE: 4,
+  HIGH: 3,
+  MEDIUM: 2,
+  LOW: 1,
+  UNKNOWN: 0,
+};
+
+/**
  * @desc    Submit a Citizen Flood / Hazard Report
  * @route   POST /api/v1/reports
- * @access  Private (Citizen) / Public
+ * @access  Private (Citizen) / Authenticated
  */
 const createReport = async (req, res, next) => {
   try {
@@ -22,188 +35,283 @@ const createReport = async (req, res, next) => {
       coordinates,
       address,
       waterLevel,
-      waterDepth,
       roadStatus,
       description,
-      imageUrl,
-      trappedPeople,
-      needsBoat,
     } = req.body;
 
-    let coords = [85.8830, 20.4625];
+    // Validate Coordinates
+    let coords = [85.8245, 20.2961];
     if (longitude !== undefined && latitude !== undefined) {
       coords = [Number(longitude), Number(latitude)];
-    } else if (coordinates && Array.isArray(coordinates)) {
+    } else if (coordinates && Array.isArray(coordinates) && coordinates.length >= 2) {
       coords = [Number(coordinates[0]), Number(coordinates[1])];
     } else if (lat !== undefined && lng !== undefined) {
       coords = [Number(lng), Number(lat)];
     }
 
-    let finalImageUrl = imageUrl;
-    if (req.file) {
-      finalImageUrl = req.file.path || req.file.url || `https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80`;
+    if (isNaN(coords[0]) || isNaN(coords[1])) {
+      return res.status(422).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Valid latitude and longitude coordinates are required',
+          details: null,
+        },
+      });
     }
 
-    // AI Vision depth estimation
-    let aiAnalysis = {
-      floodDetected: true,
-      confidence: 94.2,
-      estimatedWaterDepth: waterDepth ? parseFloat(waterDepth) || 0.8 : 0.8,
-      depthCategory: waterLevel || 'MEDIUM',
-      roadCondition: roadStatus || 'PARTIALLY_BLOCKED',
-      hazardObjectsDetected: ['Waterlogged road', 'Embankment seepage'],
-      recommendedPriority: Number(trappedPeople) > 0 ? 'HIGH' : 'MEDIUM',
-      suggestedEvacuation: Number(trappedPeople) > 0,
-      disclaimer: 'AI image analysis is a statistical estimation, not a guaranteed physical measurement.',
+    // Validate Water Level
+    const normalizedWaterLevel = (waterLevel || 'MEDIUM').toUpperCase();
+    if (!['LOW', 'MEDIUM', 'HIGH', 'SEVERE'].includes(normalizedWaterLevel)) {
+      return res.status(422).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Water level must be one of: LOW, MEDIUM, HIGH, SEVERE',
+          details: null,
+        },
+      });
+    }
+
+    // Validate Road Status
+    const normalizedRoadStatus = (roadStatus || 'PARTIALLY_BLOCKED').toUpperCase();
+    if (!['OPEN', 'PARTIALLY_BLOCKED', 'BLOCKED', 'UNKNOWN'].includes(normalizedRoadStatus)) {
+      return res.status(422).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Road status must be one of: OPEN, PARTIALLY_BLOCKED, BLOCKED, UNKNOWN',
+          details: null,
+        },
+      });
+    }
+
+    let storedImageData = null;
+    let normalizedAiAnalysis = {
+      status: 'UNAVAILABLE',
+      floodDetected: null,
+      confidence: null,
+      severity: 'UNKNOWN',
+      estimatedWaterDepthMeters: null,
+      waterCoveragePercent: null,
+      roadCondition: 'UNKNOWN',
+      vehicleTravelRecommendation: 'UNKNOWN',
+      hazardObjects: [],
+      modelName: 'ai-report-hazard',
+      modelVersion: null,
+      source: 'no_image_provided',
+      isEstimate: true,
+      requiresHumanVerification: true,
+      analyzedAt: new Date(),
     };
 
-    try {
-      if (req.file) {
-        const visionResult = await aiService.analyzeImage(req.file);
-        if (visionResult) {
-          aiAnalysis = { ...aiAnalysis, ...visionResult };
-        }
+    // If an image was uploaded via Multer
+    if (req.file) {
+      try {
+        logger.info(`Uploading citizen report image to Cloudinary (${req.file.size} bytes)...`);
+        const uploadResult = await cloudinaryService.uploadImageBuffer(req.file.buffer, {
+          folder: process.env.CLOUDINARY_FOLDER || 'jal-rakshak/reports',
+        });
+
+        storedImageData = {
+          secureUrl: uploadResult.secureUrl,
+          publicId: uploadResult.publicId,
+          width: uploadResult.width,
+          height: uploadResult.height,
+          format: uploadResult.format,
+          bytes: uploadResult.bytes,
+          uploadedAt: new Date(),
+        };
+
+        // Create audit log for image upload
+        await AuditLog.create({
+          user: req.user ? req.user._id || req.user.id : null,
+          actorRole: req.user?.role || 'citizen',
+          action: 'IMAGE_UPLOADED',
+          entityType: 'CitizenReportImage',
+          details: {
+            publicId: uploadResult.publicId,
+            bytes: uploadResult.bytes,
+            format: uploadResult.format,
+          },
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+        }).catch((err) => logger.warn(`AuditLog creation warning: ${err.message}`));
+      } catch (uploadErr) {
+        logger.error(`Cloudinary storage error: ${uploadErr.message}`);
+        return res.status(502).json({
+          success: false,
+          error: {
+            code: 'UPSTREAM_STORAGE_ERROR',
+            message: 'Failed to securely store image to Cloudinary. Please try again.',
+            details: null,
+          },
+        });
       }
-    } catch (aiErr) {
-      logger.warn(`AI vision analysis fallback used: ${aiErr.message}`);
+
+      // Call Deployed Hazard Image Verification Service
+      try {
+        normalizedAiAnalysis = await hazardVerificationService.verifyHazardImage({
+          imageUrl: storedImageData.secureUrl,
+          buffer: req.file.buffer,
+          filename: req.file.originalname,
+          mimetype: req.file.mimetype,
+        });
+
+        const auditAction =
+          normalizedAiAnalysis.status === 'COMPLETED'
+            ? 'HAZARD_MODEL_ANALYSIS_COMPLETED'
+            : 'HAZARD_MODEL_ANALYSIS_UNAVAILABLE';
+
+        await AuditLog.create({
+          user: req.user ? req.user._id || req.user.id : null,
+          actorRole: req.user?.role || 'citizen',
+          action: auditAction,
+          entityType: 'HazardModelAnalysis',
+          details: {
+            status: normalizedAiAnalysis.status,
+            severity: normalizedAiAnalysis.severity,
+            confidence: normalizedAiAnalysis.confidence,
+          },
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+        }).catch((err) => logger.warn(`AuditLog creation warning: ${err.message}`));
+      } catch (aiErr) {
+        logger.warn(`Hazard model analysis exception: ${aiErr.message}`);
+        normalizedAiAnalysis = hazardVerificationService.createUnavailableResult(aiErr.message);
+      }
     }
 
-    if (!isDbReady()) {
-      logger.info('Database offline. Creating in-memory hazard report.');
-      const populated = {
-        _id: 'REP-' + Date.now().toString(36),
-        id: 'REP-' + Date.now().toString(36),
-        userName: req.user ? req.user.fullName : 'Citizen Reporter',
-        location: { type: 'Point', coordinates: coords },
-        address: address || 'Near Bidanasi, Cuttack',
-        category: 'General Waterlogging',
-        waterLevel: (waterLevel || 'MEDIUM').toUpperCase(),
-        waterDepth: waterDepth || `${aiAnalysis.estimatedWaterDepth || 0.8}m`,
-        roadStatus: (roadStatus || 'PARTIALLY_BLOCKED').toUpperCase(),
-        description: description || 'Flood water entering low-lying sector',
-        imageUrl: finalImageUrl || 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80',
-        trappedPeople: Number(trappedPeople) || 0,
-        needsBoat: Boolean(needsBoat),
-        aiAnalysis,
-        verificationStatus: 'PENDING',
-        createdAt: new Date(),
-        lat: coords[1],
-        lng: coords[0],
-      };
-      return successResponse(res, populated, 'Citizen report submitted successfully. AI estimate recorded.', 201);
-    }
+    const userId = req.user ? req.user._id || req.user.id : null;
 
     const report = await CitizenReport.create({
-      user: req.user ? req.user.id || req.user._id : null,
-      userName: req.user ? req.user.fullName : 'Citizen Reporter',
+      user: userId,
       location: {
         type: 'Point',
         coordinates: coords,
       },
-      address: address || 'Near Naraj, Cuttack',
-      category: 'General Waterlogging',
-      waterLevel: (waterLevel || 'MEDIUM').toUpperCase(),
-      waterDepth: waterDepth || `${aiAnalysis.estimatedWaterDepth || 0.8}m`,
-      roadStatus: (roadStatus || 'PARTIALLY_BLOCKED').toUpperCase(),
-      description: description || 'Flood water entering low-lying sector',
-      imageUrl: finalImageUrl || 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80',
-      trappedPeople: Number(trappedPeople) || 0,
-      needsBoat: Boolean(needsBoat),
-      aiAnalysis,
+      address: address || 'Bhubaneswar, Odisha',
+      waterLevel: normalizedWaterLevel,
+      roadStatus: normalizedRoadStatus,
+      description: description || 'Ground situation report',
+      image: storedImageData,
+      aiAnalysis: normalizedAiAnalysis,
       verificationStatus: 'PENDING',
     });
 
-    const populated = report.toObject();
-    populated.lat = coords[1];
-    populated.lng = coords[0];
+    // Create Audit Log for report creation
+    await AuditLog.create({
+      user: userId,
+      actorRole: req.user?.role || 'citizen',
+      action: 'CITIZEN_REPORT_CREATED',
+      entityType: 'CitizenReport',
+      entityId: report._id,
+      details: {
+        reportId: report.reportId,
+        waterLevel: report.waterLevel,
+        roadStatus: report.roadStatus,
+        hasImage: Boolean(storedImageData),
+        aiSeverity: normalizedAiAnalysis.severity,
+      },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    }).catch((err) => logger.warn(`AuditLog creation warning: ${err.message}`));
 
-    return successResponse(res, populated, 'Citizen report submitted successfully. AI estimate recorded.', 201);
+    // Emit Socket.IO notification to admin room
+    notifyNewReport(report);
+
+    // Citizen Safe Response Payload
+    const citizenSafeData = {
+      reportId: report._id,
+      verificationStatus: report.verificationStatus,
+      location: {
+        latitude: coords[1],
+        longitude: coords[0],
+        address: report.address,
+      },
+      waterLevel: report.waterLevel,
+      roadStatus: report.roadStatus,
+      image: storedImageData ? { secureUrl: storedImageData.secureUrl } : null,
+      aiAnalysis: {
+        status: normalizedAiAnalysis.status,
+        floodDetected: normalizedAiAnalysis.floodDetected,
+        confidence: normalizedAiAnalysis.confidence,
+        severity: normalizedAiAnalysis.severity,
+        roadCondition: normalizedAiAnalysis.roadCondition,
+        isEstimate: true,
+        requiresHumanVerification: true,
+      },
+      createdAt: report.createdAt,
+      notice: 'AI analysis is an estimate. An administrator must verify this report.',
+    };
+
+    return res.status(201).json({
+      success: true,
+      message: 'Flood hazard report submitted and is pending verification.',
+      data: citizenSafeData,
+    });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    Get Current Citizen's Own Reports
- * @route   GET /api/v1/reports/my
- * @access  Private (Citizen)
+ * @desc    Get Pending Reports for Admin Verification Queue
+ * @route   GET /api/v1/admin/reports/pending
+ * @access  Private (Admin)
  */
-const getMyReports = async (req, res, next) => {
+const getPendingReports = async (req, res, next) => {
   try {
-    const userId = req.user ? req.user.id || req.user._id : null;
-    if (!userId) {
-      return next(new ErrorResponse('Not authorized to access your reports', 401));
-    }
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const skip = (page - 1) * limit;
 
-    const reports = await CitizenReport.find({ user: userId }).sort({ createdAt: -1 });
-    return successResponse(res, reports, 'Citizen reports retrieved successfully');
-  } catch (error) {
-    next(error);
-  }
-};
+    const reports = await CitizenReport.find({ verificationStatus: 'PENDING' })
+      .populate('user', 'fullName phone email')
+      .lean();
 
-/**
- * @desc    Get all Citizen Reports
- * @route   GET /api/v1/reports
- * @access  Public / Private
- */
-const getAllReports = async (req, res, next) => {
-  try {
-    const { status, verified, category } = req.query;
-
-    const query = {};
-    if (status) query.verificationStatus = status.toUpperCase();
-    if (verified !== undefined) {
-      query.verificationStatus = verified === 'true' ? 'VERIFIED' : { $ne: 'VERIFIED' };
-    }
-    if (category) query.category = new RegExp(category, 'i');
-
-    const reports = await CitizenReport.find(query).sort({ createdAt: -1 });
-
-    const formatted = reports.map((r) => {
-      const obj = r.toObject();
-      if (r.location && r.location.coordinates) {
-        obj.lng = r.location.coordinates[0];
-        obj.lat = r.location.coordinates[1];
+    // Sort: 1. AI Severity descending (SEVERE > HIGH > MEDIUM > LOW > UNKNOWN), 2. Created time ascending
+    reports.sort((a, b) => {
+      const rankA = SEVERITY_RANK[a.aiAnalysis?.severity] ?? 0;
+      const rankB = SEVERITY_RANK[b.aiAnalysis?.severity] ?? 0;
+      if (rankB !== rankA) {
+        return rankB - rankA;
       }
-      obj.verified = r.verificationStatus === 'VERIFIED';
-      return obj;
+      return new Date(a.createdAt) - new Date(b.createdAt);
     });
 
-    return successResponse(res, formatted, 'Citizen reports retrieved successfully');
-  } catch (error) {
-    next(error);
-  }
-};
+    const paginated = reports.slice(skip, skip + limit);
 
-/**
- * @desc    Get Single Report by ID with ownership check
- * @route   GET /api/v1/reports/:id
- * @access  Private / Public
- */
-const getReportById = async (req, res, next) => {
-  try {
-    const report = await CitizenReport.findById(req.params.id);
-    if (!report) {
-      return next(new ErrorResponse(`Report not found with id ${req.params.id}`, 404));
-    }
+    const formattedData = paginated.map((r) => ({
+      reportId: r._id,
+      id: r.reportId || r._id,
+      citizenName: r.user?.fullName || 'Anonymous Citizen',
+      phone: r.user?.phone ? `${r.user.phone.slice(0, 4)}****${r.user.phone.slice(-2)}` : null,
+      location: {
+        latitude: r.location?.coordinates ? r.location.coordinates[1] : 20.2961,
+        longitude: r.location?.coordinates ? r.location.coordinates[0] : 85.8245,
+        address: r.address,
+      },
+      submittedWaterLevel: r.waterLevel,
+      submittedRoadStatus: r.roadStatus,
+      description: r.description,
+      image: r.image?.secureUrl ? { secureUrl: r.image.secureUrl, publicId: r.image.publicId } : null,
+      aiAnalysis: r.aiAnalysis,
+      verificationStatus: r.verificationStatus,
+      submittedAt: r.createdAt,
+      createdAt: r.createdAt,
+    }));
 
-    // Role ownership check: citizens can only view their own report if user is attached
-    if (req.user && req.user.role === 'citizen' && report.user) {
-      const currentUserId = String(req.user.id || req.user._id);
-      const reportUserId = String(report.user);
-      if (currentUserId !== reportUserId) {
-        return next(new ErrorResponse('Not authorized to access this report', 403));
-      }
-    }
-
-    const obj = report.toObject();
-    if (report.location && report.location.coordinates) {
-      obj.lng = report.location.coordinates[0];
-      obj.lat = report.location.coordinates[1];
-    }
-
-    return successResponse(res, obj, 'Report retrieved successfully');
+    return res.status(200).json({
+      success: true,
+      message: 'Pending reports retrieved successfully',
+      data: {
+        total: reports.length,
+        page,
+        limit,
+        reports: formattedData,
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -216,72 +324,219 @@ const getReportById = async (req, res, next) => {
  */
 const verifyReport = async (req, res, next) => {
   try {
-    const { action, notes } = req.body; // 'VERIFY', 'REJECT', 'ESCALATE'
+    const { action, notes } = req.body;
+    const normAction = String(action || 'VERIFY').toUpperCase();
+
+    if (!['VERIFY', 'REJECT', 'ESCALATE'].includes(normAction)) {
+      return res.status(422).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Action must be one of: VERIFY, REJECT, ESCALATE',
+          details: null,
+        },
+      });
+    }
 
     const report = await CitizenReport.findById(req.params.id);
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: `Report not found with id ${req.params.id}`,
+          details: null,
+        },
+      });
+    }
+
+    let newStatus = 'VERIFIED';
+    let auditAction = 'REPORT_VERIFIED';
+
+    if (normAction === 'REJECT') {
+      newStatus = 'REJECTED';
+      auditAction = 'REPORT_REJECTED';
+    } else if (normAction === 'ESCALATE') {
+      newStatus = 'ESCALATED';
+      auditAction = 'REPORT_ESCALATED';
+      report.escalationReason = notes || 'Escalated by administrator for tactical review';
+    } else {
+      newStatus = 'VERIFIED';
+      auditAction = 'REPORT_VERIFIED';
+    }
+
+    report.verificationStatus = newStatus;
+    report.verification = {
+      verifiedBy: req.user ? req.user._id || req.user.id : null,
+      verifiedAt: new Date(),
+      action: normAction,
+      notes: notes || '',
+    };
+
+    await report.save();
+
+    // Create Audit Log
+    await AuditLog.create({
+      user: req.user ? req.user._id || req.user.id : null,
+      actorRole: req.user?.role || 'admin',
+      action: auditAction,
+      entityType: 'CitizenReport',
+      entityId: report._id,
+      details: {
+        action: normAction,
+        previousStatus: 'PENDING',
+        newStatus,
+        notes,
+      },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    }).catch((err) => logger.warn(`AuditLog creation warning: ${err.message}`));
+
+    // Emit Socket.IO event
+    notifyReportUpdated(report);
+
+    return res.status(200).json({
+      success: true,
+      message: `Report status updated to ${newStatus}`,
+      data: {
+        reportId: report._id,
+        verificationStatus: report.verificationStatus,
+        verification: report.verification,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get Current Citizen's Own Reports
+ * @route   GET /api/v1/reports/my
+ * @access  Private (Citizen)
+ */
+const getMyReports = async (req, res, next) => {
+  try {
+    const userId = req.user ? req.user._id || req.user.id : null;
+    if (!userId) {
+      return next(new ErrorResponse('Not authorized to access reports', 401));
+    }
+
+    const reports = await CitizenReport.find({ user: userId }).sort({ createdAt: -1 });
+    return successResponse(res, reports, 'Citizen reports retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get all Citizen Reports (Verified or filtered)
+ * @route   GET /api/v1/reports
+ * @access  Public / Private
+ */
+const getAllReports = async (req, res, next) => {
+  try {
+    const { status, verified } = req.query;
+    const query = {};
+
+    if (status) {
+      query.verificationStatus = status.toUpperCase();
+    } else if (verified === 'true') {
+      query.verificationStatus = 'VERIFIED';
+    }
+
+    const reports = await CitizenReport.find(query)
+      .populate('user', 'fullName')
+      .sort({ createdAt: -1 });
+
+    const formatted = reports.map((r) => {
+      const obj = r.toObject();
+      obj.id = r._id;
+      obj.reportId = r._id;
+      obj.submittedWaterLevel = r.waterLevel;
+      obj.submittedRoadStatus = r.roadStatus;
+      obj.submittedAt = r.createdAt;
+      obj.citizenName = r.user?.fullName || 'Citizen Ground Reporter';
+      if (r.location && r.location.coordinates) {
+        obj.lng = r.location.coordinates[0];
+        obj.lat = r.location.coordinates[1];
+      }
+      return obj;
+    });
+
+    return successResponse(res, formatted, 'Citizen reports retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get Single Report by ID
+ * @route   GET /api/v1/reports/:id
+ * @access  Private / Public
+ */
+const getReportById = async (req, res, next) => {
+  try {
+    const report = await CitizenReport.findById(req.params.id).populate('user', 'fullName');
     if (!report) {
       return next(new ErrorResponse(`Report not found with id ${req.params.id}`, 404));
     }
 
-    let status = 'VERIFIED';
-    const normAction = String(action || 'VERIFY').toUpperCase();
-    if (normAction === 'REJECT' || normAction === 'REJECTED') {
-      status = 'REJECTED';
-    } else if (normAction.includes('ESCALAT')) {
-      status = 'ESCALATED_TO_RESCUE';
-    } else {
-      status = 'VERIFIED';
+    const obj = report.toObject();
+    if (report.location && report.location.coordinates) {
+      obj.lng = report.location.coordinates[0];
+      obj.lat = report.location.coordinates[1];
     }
+    obj.id = report._id;
 
-    report.verificationStatus = status;
-    report.verifiedBy = req.user ? req.user.id || req.user._id : null;
-    report.verifiedAt = new Date();
-    if (notes) report.adminNotes = notes;
-
-    await report.save();
-
-    return successResponse(
-      res,
-      {
-        reportId: report._id,
-        status: report.verificationStatus,
-        verifiedAt: report.verifiedAt,
-        notes,
-      },
-      `Report status updated to ${status}`
-    );
+    return successResponse(res, obj, 'Report retrieved successfully');
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * @desc    AI Computer Vision Image Analysis
- * @route   POST /api/v1/images/analyze
- * @route   POST /api/v1/reports/analyze-image
- * @access  Public
- */
-const analyzeImage = async (req, res, next) => {
-  try {
-    const analysis = await aiService.analyzeImage(req.file || req.body);
-    return successResponse(res, analysis, 'Image analysis completed');
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Delete Report
+ * @desc    Delete Report (Admin)
  * @route   DELETE /api/v1/reports/:id
  * @access  Private (Admin)
  */
 const deleteReport = async (req, res, next) => {
   try {
-    const report = await CitizenReport.findByIdAndDelete(req.params.id);
+    const report = await CitizenReport.findById(req.params.id);
     if (!report) {
       return next(new ErrorResponse(`Report not found with id ${req.params.id}`, 404));
     }
+
+    if (report.image?.publicId) {
+      await cloudinaryService.deleteImage(report.image.publicId).catch((err) =>
+        logger.warn(`Failed to clean up Cloudinary asset: ${err.message}`)
+      );
+    }
+
+    await CitizenReport.findByIdAndDelete(req.params.id);
     return successResponse(res, null, 'Report deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    AI Hazard Image Analysis (Direct test endpoint)
+ * @route   POST /api/v1/images/analyze
+ * @access  Public / Authenticated
+ */
+const analyzeImage = async (req, res, next) => {
+  try {
+    const file = req.file;
+    const { imageUrl } = req.body || {};
+
+    const analysis = await hazardVerificationService.verifyHazardImage({
+      imageUrl,
+      buffer: file?.buffer,
+      filename: file?.originalname,
+      mimetype: file?.mimetype,
+    });
+
+    return successResponse(res, analysis, 'Hazard image analysis completed');
   } catch (error) {
     next(error);
   }
@@ -289,10 +544,11 @@ const deleteReport = async (req, res, next) => {
 
 module.exports = {
   createReport,
+  getPendingReports,
+  verifyReport,
   getMyReports,
   getAllReports,
   getReportById,
-  verifyReport,
-  analyzeImage,
   deleteReport,
+  analyzeImage,
 };

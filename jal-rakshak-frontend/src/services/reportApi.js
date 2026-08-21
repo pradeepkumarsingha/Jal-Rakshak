@@ -2,59 +2,70 @@ import api from './api'
 import { INITIAL_REPORTS } from '../utils/mockData'
 
 export const reportApi = {
-  getAllReports: async () => {
+  getAllReports: async (params = {}) => {
     try {
-      const res = await api.get('/api/v1/reports')
-      return res.data
-    } catch {
+      const res = await api.get('/api/v1/reports', { params })
+      return res.data?.data || res.data || []
+    } catch (err) {
+      console.warn('Fallback to mock reports:', err.message)
       return INITIAL_REPORTS
+    }
+  },
+
+  getMyReports: async () => {
+    try {
+      const res = await api.get('/api/v1/reports/my')
+      return res.data?.data || res.data || []
+    } catch (err) {
+      console.warn('Failed to fetch my reports:', err.message)
+      return []
+    }
+  },
+
+  getPendingReports: async (page = 1, limit = 50) => {
+    try {
+      const res = await api.get(`/api/v1/admin/reports/pending?page=${page}&limit=${limit}`)
+      return res.data?.data?.reports || res.data?.data || res.data || []
+    } catch (err) {
+      console.warn('Failed to fetch pending admin reports:', err.message)
+      return []
     }
   },
 
   submitReport: async (reportData) => {
     try {
-      const res = await api.post('/api/v1/reports', reportData)
-      return res.data
-    } catch {
-      return {
-        id: `REP-${Math.floor(500 + Math.random() * 500)}`,
-        status: 'PENDING_REVIEW',
-        aiConfidence: 94,
-        aiDetectedDepth: reportData.waterDepth || '0.85 meters',
-        timestamp: new Date().toISOString(),
-        ...reportData,
+      let res
+      if (reportData instanceof FormData) {
+        res = await api.post('/api/v1/reports', reportData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+      } else {
+        res = await api.post('/api/v1/reports', reportData)
       }
+      return res.data
+    } catch (err) {
+      console.error('Report submission error:', err.response?.data || err.message)
+      throw err
     }
   },
 
-  analyzeImage: async (imageFile) => {
+  verifyReport: async (reportId, action, notes = '') => {
     try {
-      const formData = new FormData()
-      formData.append('image', imageFile)
-      const res = await api.post('/api/v1/images/analyze', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      const res = await api.post(`/api/v1/reports/${reportId}/verify`, { action, notes })
       return res.data
-    } catch {
-      // Simulate AI Vision model analyzing water depth from objects / vehicles in photo
-      return {
-        success: true,
-        detectedWaterDepthMeters: 1.15,
-        depthCategory: 'Waist Level (~1.15m)',
-        confidenceScore: 95.8,
-        hazardObjectsDetected: ['Submerged vehicle tyres (80% deep)', 'Ground floor door frame inundated', 'Turbid muddy current'],
-        recommendedPriority: 'HIGH',
-        suggestedEvacuation: true,
-      }
+    } catch (err) {
+      console.error(`Verify report ${reportId} failed:`, err.response?.data || err.message)
+      throw err
     }
   },
 
-  verifyReport: async (reportId, action) => {
+  deleteReport: async (reportId) => {
     try {
-      const res = await api.post(`/api/v1/reports/${reportId}/verify`, { action })
+      const res = await api.delete(`/api/v1/reports/${reportId}`)
       return res.data
-    } catch {
-      return { success: true, reportId, action }
+    } catch (err) {
+      console.error(`Delete report ${reportId} failed:`, err.message)
+      throw err
     }
   },
 }

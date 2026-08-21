@@ -1,40 +1,54 @@
 const mongoose = require('mongoose');
-const { RESCUE_STATUS } = require('../utils/constants');
 
-const RescueTeamSchema = new mongoose.Schema(
+const vehicleSchema = new mongoose.Schema(
   {
-    teamId: {
+    vehicleId: String,
+    vehicleType: String,
+    status: {
+      type: String,
+      enum: ['AVAILABLE', 'DEPLOYED', 'MAINTENANCE', 'OFFLINE'],
+      default: 'AVAILABLE',
+    },
+    capacity: {
+      type: Number,
+      default: 6,
+    },
+    fuelPercent: {
+      type: Number,
+      default: 100,
+    },
+  },
+  { _id: false }
+);
+
+const rescueTeamSchema = new mongoose.Schema(
+  {
+    teamName: {
+      type: String,
+      required: [true, 'Team name is required'],
+      trim: true,
+    },
+
+    teamCode: {
       type: String,
       unique: true,
-      sparse: true,
-      index: true,
-    },
-    name: {
-      type: String,
-      required: [true, 'Please provide rescue team name'],
-      trim: true,
-      index: true,
-    },
-    commander: {
-      type: String,
-      required: [true, 'Please provide team commander name'],
+      required: [true, 'Unique team code is required'],
+      uppercase: true,
       trim: true,
     },
-    phone: {
-      type: String,
-      required: [true, 'Please provide emergency contact number'],
-      trim: true,
+
+    teamLead: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
-    unitType: {
-      type: String,
-      default: 'Inflatable Motor Boat (IRB) & Dive Team',
-      trim: true,
-    },
-    capacityPersons: {
-      type: Number,
-      default: 15,
-      min: 1,
-    },
+
+    members: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+
     currentLocation: {
       type: {
         type: String,
@@ -43,42 +57,50 @@ const RescueTeamSchema = new mongoose.Schema(
       },
       coordinates: {
         type: [Number], // [longitude, latitude]
-        default: [85.8621, 20.4782],
+        default: [85.8245, 20.2961],
       },
     },
-    locationName: {
+
+    district: {
       type: String,
-      default: 'Bidanasi Basecamp',
+      default: 'Cuttack',
       trim: true,
     },
+
+    state: {
+      type: String,
+      default: 'Odisha',
+      trim: true,
+    },
+
+    vehicles: [vehicleSchema],
+
+    resources: {
+      lifeJackets: { type: Number, default: 20 },
+      firstAidKits: { type: Number, default: 5 },
+      rescueBoats: { type: Number, default: 2 },
+      ropes: { type: Number, default: 10 },
+    },
+
     status: {
       type: String,
-      enum: Object.values(RESCUE_STATUS),
-      default: RESCUE_STATUS.STANDBY_READY,
+      enum: ['AVAILABLE', 'DEPLOYED', 'OFFLINE', 'MAINTENANCE'],
+      default: 'AVAILABLE',
       index: true,
     },
-    activeMissionId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'EmergencyRequest',
-      default: null,
+
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
     },
-    activeMissionCode: {
-      type: String,
-      trim: true,
-      default: null,
-    },
-    equipment: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
   },
   {
     timestamps: true,
   }
 );
 
-RescueTeamSchema.index({ currentLocation: '2dsphere' });
+rescueTeamSchema.index({ currentLocation: '2dsphere' });
+rescueTeamSchema.index({ status: 1, district: 1 });
 
-module.exports = mongoose.model('RescueTeam', RescueTeamSchema);
+module.exports = mongoose.model('RescueTeam', rescueTeamSchema);

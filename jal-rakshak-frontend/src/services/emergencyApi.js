@@ -1,40 +1,92 @@
 import api from './api'
-import { INITIAL_EMERGENCIES } from '../utils/mockData'
+import { INITIAL_EMERGENCIES, INITIAL_RESCUE_TEAMS } from '../utils/mockData'
 
 export const emergencyApi = {
   createEmergencyRequest: async (data) => {
     try {
       const res = await api.post('/api/v1/emergency/request', data)
       return res.data
-    } catch {
-      return {
-        id: `SOS-${Math.floor(8800 + Math.random() * 1000)}`,
-        status: 'PENDING_ASSIGNMENT',
-        priority: data.priority || 'CRITICAL',
-        priorityScore: data.priorityScore || 95,
-        timestamp: new Date().toISOString(),
-        assignedTeam: null,
-        etaMinutes: null,
-        ...data,o
-      }
+    } catch (err) {
+      console.error('Create emergency error:', err.response?.data || err.message)
+      throw err
     }
   },
 
-  getAllRequests: async () => {
+  getMyEmergencies: async () => {
     try {
-      const res = await api.get('/api/v1/emergency/requests')
-      return res.data
-    } catch {
+      const res = await api.get('/api/v1/emergency/my')
+      return res.data?.data || res.data || []
+    } catch (err) {
+      console.warn('Failed to fetch my emergencies:', err.message)
+      return []
+    }
+  },
+
+  getAllRequests: async (params = {}) => {
+    try {
+      const res = await api.get('/api/v1/emergency/requests', { params })
+      return res.data?.data || res.data || []
+    } catch (err) {
+      console.warn('Fallback to mock emergencies:', err.message)
       return INITIAL_EMERGENCIES
     }
   },
 
-  assignTeam: async (requestId, teamId) => {
+  getRequestById: async (id) => {
     try {
-      const res = await api.post(`/api/v1/emergency/${requestId}/assign`, { teamId })
+      const res = await api.get(`/api/v1/emergency/${id}`)
+      return res.data?.data || res.data
+    } catch (err) {
+      console.error(`Get emergency ${id} failed:`, err.message)
+      throw err
+    }
+  },
+
+  getAvailableRescueTeams: async (params = {}) => {
+    try {
+      const res = await api.get('/api/v1/rescue/teams', { params })
+      return res.data?.data || res.data || []
+    } catch (err) {
+      console.warn('Fallback to mock rescue teams:', err.message)
+      return INITIAL_RESCUE_TEAMS
+    }
+  },
+
+  assignTeam: async (emergencyId, { rescueTeamId, estimatedEtaMinutes, note }) => {
+    try {
+      const res = await api.post(`/api/v1/emergency/${emergencyId}/assign`, {
+        rescueTeamId,
+        estimatedEtaMinutes,
+        note,
+      })
       return res.data
-    } catch {
-      return { success: true, requestId, teamId, status: 'DISPATCHED' }
+    } catch (err) {
+      console.error(`Assign team error for ${emergencyId}:`, err.response?.data || err.message)
+      throw err
+    }
+  },
+
+  getRescueAssignments: async () => {
+    try {
+      const res = await api.get('/api/v1/rescue/assignments')
+      return res.data?.data || res.data || []
+    } catch (err) {
+      console.warn('Failed to fetch assignments:', err.message)
+      return []
+    }
+  },
+
+  updateAssignmentStatus: async (assignmentId, { status, note, etaMinutes }) => {
+    try {
+      const res = await api.patch(`/api/v1/rescue/assignments/${assignmentId}/status`, {
+        status,
+        note,
+        etaMinutes,
+      })
+      return res.data
+    } catch (err) {
+      console.error(`Update status failed for assignment ${assignmentId}:`, err.response?.data || err.message)
+      throw err
     }
   },
 }

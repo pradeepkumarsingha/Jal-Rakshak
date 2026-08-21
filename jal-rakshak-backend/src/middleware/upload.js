@@ -1,25 +1,32 @@
 const multer = require('multer');
-const { storage } = require('../config/cloudinary');
-const { ErrorResponse } = require('./errorHandler');
 
-// File filter for image uploads
-const imageFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new ErrorResponse('Please upload only image files (JPEG, PNG, WebP).', 400), false);
-  }
-};
+const allowedMimeTypes = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+]);
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB maximum file size
+    fileSize: 5 * 1024 * 1024, // 5 MB max
   },
-  fileFilter: imageFilter,
+  fileFilter: (req, file, cb) => {
+    if (!allowedMimeTypes.has(file.mimetype)) {
+      const error = new Error(
+        'Only JPEG, PNG, and WEBP image files are allowed.'
+      );
+      error.statusCode = 415;
+      error.code = 'UNSUPPORTED_IMAGE_TYPE';
+      return cb(error);
+    }
+    cb(null, true);
+  },
 });
 
 module.exports = {
+  uploadSingleReportImage: upload.single('image'),
   uploadSingleImage: upload.single('image'),
   uploadMultipleImages: upload.array('images', 5),
   upload,

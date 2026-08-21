@@ -1,14 +1,13 @@
+const cloudinary = require('./cloudinary');
 const { connectDB, disconnectDB } = require('./database');
 const { initRedis, getCache, setCache, delCache } = require('./redis');
-const { cloudinary, storage } = require('./cloudinary');
 
 module.exports = {
+  cloudinary,
   connectDB,
   disconnectDB,
   initRedis,
   getCache,
   setCache,
   delCache,
-  cloudinary,
-  storage,
 };

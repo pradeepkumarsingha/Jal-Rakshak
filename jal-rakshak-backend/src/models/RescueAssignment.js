@@ -1,6 +1,44 @@
 const mongoose = require('mongoose');
 
-const RescueAssignmentSchema = new mongoose.Schema(
+const noteSchema = new mongoose.Schema(
+  {
+    message: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
+
+const statusHistorySchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      required: true,
+    },
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    changedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    note: String,
+  },
+  { _id: false }
+);
+
+const rescueAssignmentSchema = new mongoose.Schema(
   {
     emergencyRequest: {
       type: mongoose.Schema.Types.ObjectId,
@@ -8,48 +46,71 @@ const RescueAssignmentSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+
     rescueTeam: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'RescueTeam',
       required: true,
       index: true,
     },
+
     assignedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
+      required: true,
     },
-    status: {
+
+    assignmentStatus: {
       type: String,
-      enum: ['ASSIGNED', 'DISPATCHED', 'EN_ROUTE', 'ON_SCENE', 'RESCUED', 'CLOSED', 'CANCELLED'],
+      enum: [
+        'ASSIGNED',
+        'DISPATCHED',
+        'EN_ROUTE',
+        'ON_SCENE',
+        'RESCUED',
+        'CLOSED',
+        'CANCELLED',
+      ],
       default: 'ASSIGNED',
       index: true,
     },
-    statusHistory: [
-      {
-        status: String,
-        updatedAt: { type: Date, default: Date.now },
-        updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        note: String,
-      },
-    ],
-    priorityScore: {
-      type: Number,
-      default: 50,
-    },
-    etaMinutes: {
-      type: Number,
-    },
+
     assignedAt: {
       type: Date,
       default: Date.now,
     },
-    completedAt: {
-      type: Date,
+
+    dispatchedAt: Date,
+    enRouteAt: Date,
+    onSceneAt: Date,
+    rescuedAt: Date,
+    closedAt: Date,
+
+    estimatedEtaMinutes: {
+      type: Number,
+      default: 15,
     },
+
+    routeSnapshot: mongoose.Schema.Types.Mixed,
+
+    notes: [noteSchema],
+
+    statusHistory: [statusHistorySchema],
   },
   {
     timestamps: true,
   }
 );
 
-module.exports = mongoose.model('RescueAssignment', RescueAssignmentSchema);
+rescueAssignmentSchema.index({
+  rescueTeam: 1,
+  assignmentStatus: 1,
+  assignedAt: -1,
+});
+
+rescueAssignmentSchema.index({
+  emergencyRequest: 1,
+  assignmentStatus: 1,
+});
+
+module.exports = mongoose.model('RescueAssignment', rescueAssignmentSchema);
