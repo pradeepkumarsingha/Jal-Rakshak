@@ -66,7 +66,7 @@ const createEmergencyRequest = async (req, res, next) => {
     let priorityLevel = 'CRITICAL';
 
     try {
-      const aiPriority = await aiService.calculatePriority({
+      const aiPriority = await (aiService.calculateEmergencyPriority || aiService.calculatePriority)({
         totalPeople: resolvedPeople,
         victims: resolvedVictims,
         medicalEmergency: Boolean(medicalEmergency),

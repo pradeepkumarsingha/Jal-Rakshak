@@ -9,6 +9,13 @@ export function useAuth() {
   return ctx
 }
 
+export const getUserHomePath = (user) => {
+  if (!user) return '/login'
+  if (user.role === 'admin') return '/admin'
+  if (user.role === 'rescue') return '/rescue'
+  return '/dashboard'
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
@@ -20,7 +27,6 @@ export function AuthProvider({ children }) {
   })
 
   const [token, setToken] = useState(() => localStorage.getItem('jalrakshak_token') || '')
-  const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem('jalrakshak_refresh_token') || '')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -42,16 +48,11 @@ export function AuthProvider({ children }) {
 
       const responseData = res.data?.data || res.data
       const receivedToken = responseData.accessToken || responseData.token
-      const receivedRefresh = responseData.refreshToken
       const userData = responseData.user
 
       if (receivedToken) {
         setToken(receivedToken)
         localStorage.setItem('jalrakshak_token', receivedToken)
-      }
-      if (receivedRefresh) {
-        setRefreshToken(receivedRefresh)
-        localStorage.setItem('jalrakshak_refresh_token', receivedRefresh)
       }
       if (userData) {
         setUser(userData)
@@ -100,16 +101,11 @@ export function AuthProvider({ children }) {
       const res = await api.post('/api/v1/auth/register', userData)
       const responseData = res.data?.data || res.data
       const receivedToken = responseData.accessToken || responseData.token
-      const receivedRefresh = responseData.refreshToken
       const createdUser = responseData.user
 
       if (receivedToken) {
         setToken(receivedToken)
         localStorage.setItem('jalrakshak_token', receivedToken)
-      }
-      if (receivedRefresh) {
-        setRefreshToken(receivedRefresh)
-        localStorage.setItem('jalrakshak_refresh_token', receivedRefresh)
       }
       if (createdUser) {
         setUser(createdUser)
@@ -157,7 +153,6 @@ export function AuthProvider({ children }) {
     }
     setUser(null)
     setToken('')
-    setRefreshToken('')
     localStorage.removeItem('jalrakshak_token')
     localStorage.removeItem('jalrakshak_refresh_token')
     localStorage.removeItem('jalrakshak_user')
@@ -210,9 +205,9 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     token,
-    refreshToken,
     loading,
-    isAuthenticated: !!user,
+    isAuthenticated: Boolean(user),
+    getUserHomePath: () => getUserHomePath(user),
     login,
     register,
     logout,

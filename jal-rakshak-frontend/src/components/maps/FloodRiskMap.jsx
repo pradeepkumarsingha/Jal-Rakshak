@@ -3,6 +3,8 @@ import { MapContainer, TileLayer, Polygon, Marker, Popup, Polyline, Circle, useM
 import L from 'leaflet'
 import { Link } from 'react-router-dom'
 import { useFloodData } from '../../context/FloodDataContext'
+import { useLocation } from '../../context/LocationContext'
+import { useGeolocation } from '../../hooks/useGeolocation'
 import MapLegend from './MapLegend'
 import MapControls from './MapControls'
 import {
@@ -14,30 +16,50 @@ import {
   Clock,
   AlertOctagon,
   ExternalLink,
+  MapPin,
 } from 'lucide-react'
 
-// Center adjuster component for Leaflet
-function MapRecenter({ center, zoom }) {
+// Center and bounds adjuster component for Leaflet
+function MapRecenter({ center, zoom, bounds }) {
   const map = useMap()
   useEffect(() => {
-    if (center) {
-      map.flyTo(center, zoom || map.getZoom(), { duration: 1.5 })
+    if (bounds && Array.isArray(bounds) && bounds.length > 1) {
+      try {
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 })
+      } catch (e) {
+        // fallback
+      }
+    } else if (center && Array.isArray(center) && center.length === 2 && !isNaN(center[0]) && !isNaN(center[1])) {
+      map.flyTo(center, zoom || map.getZoom(), { duration: 1.2 })
     }
-  }, [center, zoom, map])
+  }, [center, zoom, bounds, map])
   return null
 }
 
 export default function FloodRiskMap({
   height = '600px',
-  center = [20.4782, 85.8621], // Cuttack Default
+  center = null,
   zoom = 13,
   showControls = true,
   routeWaypoints = null,
   highlightShelterId = null,
+  activeNavPoint = null,
+  isNavigating = false,
 }) {
   const { riskZones, shelters, reports, emergencies, rescueTeams } = useFloodData()
-  const [mapCenter, setMapCenter] = useState(center)
-  const [mapZoom, setMapZoom] = useState(zoom)
+  const { selectedLocation } = useLocation()
+  const { latitude: gpsLat, longitude: gpsLng, accuracy: gpsAcc } = useGeolocation()
+
+  const liveLat = selectedLocation?.latitude ?? gpsLat ?? 20.2218
+  const liveLng = selectedLocation?.longitude ?? gpsLng ?? 85.6736
+  const userLocation = [liveLat, liveLng]
+  const userLocationName = selectedLocation?.name || 'Current GPS Pin'
+  const userDistrict = selectedLocation?.district ? `• District: ${selectedLocation.district}` : ''
+  const userAccuracy = Math.round(selectedLocation?.accuracy ?? gpsAcc ?? 75)
+
+  const defaultCenter = activeNavPoint || center || userLocation
+  const [mapCenter, setMapCenter] = useState(defaultCenter)
+  const [mapZoom, setMapZoom] = useState(isNavigating ? 16 : zoom)
   const [selectedTime, setSelectedTime] = useState('NOW')
   const [layers, setLayers] = useState({
     zones: true,
@@ -47,7 +69,15 @@ export default function FloodRiskMap({
     rescue: true,
   })
 
-  const userLocation = [20.4782, 85.8621]
+  // Keep map centered if external activeNavPoint or center prop updates
+  useEffect(() => {
+    if (activeNavPoint) {
+      setMapCenter(activeNavPoint)
+      setMapZoom(16)
+    } else if (center) {
+      setMapCenter(center)
+    }
+  }, [activeNavPoint, center])
 
   // Create custom DivIcons for Leaflet
   const createDivIcon = (htmlContent, className = 'custom-div-icon', iconSize = [32, 32]) => {
@@ -103,6 +133,17 @@ export default function FloodRiskMap({
     [24, 24]
   )
 
+  const navArrowIcon = createDivIcon(
+    `<div class="relative flex items-center justify-center w-10 h-10">
+      <span class="absolute w-10 h-10 rounded-full bg-emerald-500 animate-ping opacity-60"></span>
+      <span class="relative w-8 h-8 rounded-full bg-emerald-600 border-2 border-white text-white flex items-center justify-center shadow-xl font-bold">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+      </span>
+    </div>`,
+    'nav-arrow-marker',
+    [40, 40]
+  )
+
   const handleLocateMe = () => {
     setMapCenter(userLocation)
     setMapZoom(14)
@@ -116,7 +157,7 @@ export default function FloodRiskMap({
         scrollWheelZoom={true}
         style={{ height: '100%', width: '100%' }}
       >
-        <MapRecenter center={mapCenter} zoom={mapZoom} />
+        <MapRecenter center={mapCenter} zoom={mapZoom} bounds={routeWaypoints} />
 
         {/* Base OpenStreetMap Tile Layer */}
         <TileLayer
@@ -127,20 +168,36 @@ export default function FloodRiskMap({
         {/* User GPS Circle & Marker */}
         <Marker position={userLocation} icon={userGpsIcon}>
           <Popup>
-            <div className="p-3 text-xs font-sans">
-              <span className="text-[10px] font-bold uppercase text-brand-600">Your Detected Location</span>
-              <h4 className="font-bold text-slate-800 text-sm mt-0.5">Bidanasi, Cuttack</h4>
-              <p className="text-slate-500 mt-1">Estimated Inundation Risk: <strong className="text-red-600">CRITICAL (88%)</strong></p>
+            <div className="p-3 text-xs font-sans min-w-[200px]">
+              <div className="flex items-center gap-1.5 text-brand-600 mb-1">
+                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-[10px] font-extrabold uppercase tracking-wider">Your Live GPS Location</span>
+              </div>
+              <h4 className="font-extrabold text-slate-900 text-sm">{userLocationName}</h4>
+              {userDistrict && <p className="text-slate-600 font-semibold text-[11px] mt-0.5">{userDistrict}</p>}
+              <div className="mt-2 p-1.5 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[10px] text-slate-600 flex justify-between">
+                <span>[{liveLat.toFixed(4)}, {liveLng.toFixed(4)}]</span>
+                <span>±{userAccuracy}m</span>
+              </div>
               <Link
                 to="/route"
-                className="mt-2 inline-flex items-center gap-1 w-full justify-center px-3 py-1.5 rounded-lg bg-brand-600 text-white font-semibold text-xs hover:bg-brand-700"
+                className="mt-2.5 inline-flex items-center gap-1.5 w-full justify-center px-3 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-xs transition"
               >
                 <Navigation className="w-3.5 h-3.5" /> Navigate to Safe Shelter
               </Link>
             </div>
           </Popup>
         </Marker>
-        <Circle center={userLocation} radius={350} pathOptions={{ color: '#0284C7', fillColor: '#0EA5E9', fillOpacity: 0.15 }} />
+        {/* Active In-Map Navigation Waypoint / User Turn Marker */}
+        {activeNavPoint && (
+          <Marker position={activeNavPoint} icon={navArrowIcon}>
+            <Popup>
+              <div className="p-2 text-xs font-sans font-bold text-emerald-700">
+                <span>Active Navigation Step Target</span>
+              </div>
+            </Popup>
+          </Marker>
+        )}
 
         {/* Flood Risk Polygons */}
         {layers.zones &&
@@ -301,16 +358,27 @@ export default function FloodRiskMap({
 
         {/* Safe Route Polyline Overlay */}
         {routeWaypoints && routeWaypoints.length > 1 && (
-          <Polyline
-            positions={routeWaypoints}
-            pathOptions={{
-              color: '#0284C7',
-              weight: 5,
-              opacity: 0.9,
-              dashArray: '8, 8',
-              lineCap: 'round',
-            }}
-          />
+          <>
+            <Polyline
+              positions={routeWaypoints}
+              pathOptions={{
+                color: '#0284C7',
+                weight: 8,
+                opacity: 0.35,
+              }}
+            />
+            <Polyline
+              positions={routeWaypoints}
+              pathOptions={{
+                color: '#0284C7',
+                weight: 5,
+                opacity: 1,
+                dashArray: '10, 8',
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
+            />
+          </>
         )}
       </MapContainer>
 

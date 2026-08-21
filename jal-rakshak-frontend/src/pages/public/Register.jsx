@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useAlert } from '../../context/AlertContext'
@@ -16,9 +16,17 @@ import {
 import JalRakshakLogo from '../../components/common/JalRakshakLogo'
 
 export default function Register() {
-  const { register: registerUser } = useAuth()
+  const { user, isAuthenticated, getUserHomePath, register: registerUser } = useAuth()
   const { showToast } = useAlert()
   const navigate = useNavigate()
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const destination = getUserHomePath ? getUserHomePath(user) : (user.role === 'admin' ? '/admin' : user.role === 'rescue' ? '/rescue' : '/dashboard')
+      navigate(destination, { replace: true })
+    }
+  }, [isAuthenticated, user, navigate, getUserHomePath])
 
   const [formData, setFormData] = useState({
     name: '',

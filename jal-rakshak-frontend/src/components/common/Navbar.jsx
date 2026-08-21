@@ -38,7 +38,7 @@ export default function Navbar() {
   const { user, logout } = useAuth()
   const { t } = useLanguage()
   const { activeCriticalAlert } = useAlert()
-  const { scenario, changeScenario } = useFloodData()
+  const { dataMode, changeDataMode } = useFloodData()
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -189,76 +189,95 @@ export default function Navbar() {
 
           {/* Action Bar Right */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Simulation Scenario Switcher */}
+            {/* Data Mode & Simulation Scenario Switcher */}
             <div className="relative" ref={simRef}>
               <button
                 type="button"
                 onClick={() => setSimMenuOpen(!simMenuOpen)}
                 className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                  scenario === 'FLASH_FLOOD_RED_ALERT'
+                  dataMode === 'simulation-mahanadi'
                     ? 'bg-red-50 text-red-700 border-red-200'
-                    : scenario === 'MONSOON_WARNING'
+                    : dataMode === 'simulation-monsoon'
                     ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : dataMode === 'simulation-normal'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     : isDarkPortal
-                    ? 'bg-slate-800 text-emerald-400 border-slate-700'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    ? 'bg-slate-800 text-cyan-400 border-slate-700'
+                    : 'bg-blue-50 text-blue-700 border-blue-200'
                 }`}
-                title="Scenario Simulator: Test different flood severities"
+                title="Data Mode: Live GPS Telemetry vs Simulation Presets"
               >
                 <Sliders className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline">Sim:</span>
+                <span className="hidden xl:inline">Mode:</span>
                 <span className="font-bold">
-                  {scenario === 'FLASH_FLOOD_RED_ALERT'
-                    ? '⚡ Red Alert'
-                    : scenario === 'MONSOON_WARNING'
-                    ? '🌧️ Warning'
-                    : '☀️ Normal'}
+                  {dataMode === 'simulation-mahanadi'
+                    ? '⚡ Sim: Red Alert'
+                    : dataMode === 'simulation-monsoon'
+                    ? '🌧️ Sim: Monsoon'
+                    : dataMode === 'simulation-normal'
+                    ? '☀️ Sim: Normal'
+                    : '🛰️ Live Telemetry'}
                 </span>
               </button>
 
               {simMenuOpen && (
                 <div
-                  className={`absolute right-0 mt-2 w-56 rounded-xl shadow-xl border py-2 z-50 animate-in fade-in zoom-in duration-150 ${
+                  className={`absolute right-0 mt-2 w-64 rounded-xl shadow-xl border py-2 z-50 animate-in fade-in zoom-in duration-150 ${
                     isDarkPortal
                       ? 'bg-slate-900 border-slate-700 text-slate-200'
                       : 'bg-white border-slate-200 text-slate-800'
                   }`}
                 >
                   <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Simulation Scenarios
+                    Live vs Simulation Modes
                   </div>
                   <button
                     type="button"
                     onClick={() => {
-                      changeScenario('FLASH_FLOOD_RED_ALERT')
+                      changeDataMode('live')
+                      setSimMenuOpen(false)
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-blue-600 hover:bg-blue-500/10 flex items-center justify-between font-semibold cursor-pointer"
+                  >
+                    <span>🛰️ Live Real-Time (Device GPS)</span>
+                    {dataMode === 'live' && <span className="text-xs">✓</span>}
+                  </button>
+                  <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Demonstration Scenarios
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      changeDataMode('simulation-mahanadi')
                       setSimMenuOpen(false)
                     }}
                     className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-500/10 flex items-center justify-between font-semibold cursor-pointer"
                   >
-                    <span>⚡ Flash Flood Red Alert</span>
-                    {scenario === 'FLASH_FLOOD_RED_ALERT' && <span className="text-xs">✓</span>}
+                    <span>⚡ Flash Flood Red Alert (Mahanadi)</span>
+                    {dataMode === 'simulation-mahanadi' && <span className="text-xs">✓</span>}
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      changeScenario('MONSOON_WARNING')
+                      changeDataMode('simulation-monsoon')
                       setSimMenuOpen(false)
                     }}
                     className="w-full text-left px-3 py-2 text-xs text-amber-500 hover:bg-amber-500/10 flex items-center justify-between font-semibold cursor-pointer"
                   >
                     <span>🌧️ Monsoon Surge Warning</span>
-                    {scenario === 'MONSOON_WARNING' && <span className="text-xs">✓</span>}
+                    {dataMode === 'simulation-monsoon' && <span className="text-xs">✓</span>}
                   </button>
                   <button
                     type="button"
                     onClick={() => {
-                      changeScenario('NORMAL')
+                      changeDataMode('simulation-normal')
                       setSimMenuOpen(false)
                     }}
                     className="w-full text-left px-3 py-2 text-xs text-emerald-500 hover:bg-emerald-500/10 flex items-center justify-between font-semibold cursor-pointer"
                   >
                     <span>☀️ Normal Baseline Levels</span>
-                    {scenario === 'NORMAL' && <span className="text-xs">✓</span>}
+                    {dataMode === 'simulation-normal' && <span className="text-xs">✓</span>}
                   </button>
                 </div>
               )}

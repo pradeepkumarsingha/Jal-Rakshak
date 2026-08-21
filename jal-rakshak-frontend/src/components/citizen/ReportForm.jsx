@@ -36,7 +36,7 @@ export default function ReportForm({ onSuccess }) {
   } = useForm({
     resolver: zodResolver(reportSchema),
     defaultValues: {
-      location: user?.location?.address || 'Bidanasi Embankment, Cuttack',
+      location: user?.location?.address || '',
       category: 'Waterlogged Main Arterial Road',
       waterDepth: '0.8 meters (Knee Level)',
       description: '',
@@ -50,13 +50,13 @@ export default function ReportForm({ onSuccess }) {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setValue('location', `GPS Pin: ${pos.coords.latitude.toFixed(4)}° N, ${pos.coords.longitude.toFixed(4)}° E (Near Cuttack)`)
+          setValue('location', `GPS Pin: ${pos.coords.latitude.toFixed(4)}° N, ${pos.coords.longitude.toFixed(4)}° E`)
           setGpsLoading(false)
         },
         () => {
-          setValue('location', 'Bidanasi Ward 4, Near Mahanadi Bund, Cuttack')
           setGpsLoading(false)
-        }
+        },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
       )
     } else {
       setGpsLoading(false)

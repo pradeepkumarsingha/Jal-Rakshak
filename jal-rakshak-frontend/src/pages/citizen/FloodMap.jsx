@@ -1,19 +1,31 @@
 import React, { useState } from 'react'
 import FloodRiskMap from '../../components/maps/FloodRiskMap'
 import { useFloodData } from '../../context/FloodDataContext'
-import { MapPin, ShieldAlert, Layers, Navigation, Home, Flame, Info } from 'lucide-react'
+import { useLocation } from '../../context/LocationContext'
+import { useGeolocation } from '../../hooks/useGeolocation'
+import { MapPin, ShieldAlert, Layers, Navigation, Home, Flame, Info, Locate } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export default function FloodMap() {
   const { riskZones, shelters, emergencies, reports } = useFloodData()
-  const [activeDistrict, setActiveDistrict] = useState('Cuttack')
+  const { selectedLocation } = useLocation()
+  const { latitude: gpsLat, longitude: gpsLng } = useGeolocation()
+
+  const liveLat = selectedLocation?.latitude ?? gpsLat ?? 20.2218
+  const liveLng = selectedLocation?.longitude ?? gpsLng ?? 85.6736
+  const liveLocName = selectedLocation?.name || 'My Location'
+
+  const [activeTab, setActiveTab] = useState('LIVE')
 
   const districtCoords = {
+    LIVE: [liveLat, liveLng],
     Cuttack: [20.4782, 85.8621],
     Kendrapara: [20.5015, 86.4210],
     Bhubaneswar: [20.3541, 85.8192],
     Puri: [20.380, 85.890],
   }
+
+  const mapCenter = activeTab === 'LIVE' ? [liveLat, liveLng] : districtCoords[activeTab]
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
@@ -33,14 +45,25 @@ export default function FloodMap() {
           </p>
         </div>
 
-        {/* District Selector Tabs */}
-        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs">
-          {Object.keys(districtCoords).map((d) => (
+        {/* District / Live Location Selector Tabs */}
+        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs flex-wrap gap-1">
+          <button
+            onClick={() => setActiveTab('LIVE')}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+              activeTab === 'LIVE'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-700 hover:text-slate-900'
+            }`}
+          >
+            <Locate className="w-3.5 h-3.5" />
+            <span>{liveLocName} (GPS)</span>
+          </button>
+          {['Cuttack', 'Kendrapara', 'Bhubaneswar', 'Puri'].map((d) => (
             <button
               key={d}
-              onClick={() => setActiveDistrict(d)}
-              className={`px-3 py-1.5 rounded-xl font-bold transition ${
-                activeDistrict === d
+              onClick={() => setActiveTab(d)}
+              className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+                activeTab === d
                   ? 'bg-brand-600 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
@@ -99,8 +122,8 @@ export default function FloodMap() {
       {/* Main Map Container */}
       <FloodRiskMap
         height="640px"
-        center={districtCoords[activeDistrict]}
-        zoom={13}
+        center={mapCenter}
+        zoom={activeTab === 'LIVE' ? 14 : 13}
         showControls={true}
       />
     </div>

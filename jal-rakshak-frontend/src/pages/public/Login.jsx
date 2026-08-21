@@ -22,10 +22,18 @@ import {
 import JalRakshakLogo from '../../components/common/JalRakshakLogo'
 
 export default function Login() {
-  const { login, forgotPassword } = useAuth()
+  const { user, isAuthenticated, getUserHomePath, login, forgotPassword } = useAuth()
   const { showToast } = useAlert()
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Auto-redirect if user is already logged in
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const destination = getUserHomePath ? getUserHomePath(user) : (user.role === 'admin' ? '/admin' : user.role === 'rescue' ? '/rescue' : '/dashboard')
+      navigate(destination, { replace: true })
+    }
+  }, [isAuthenticated, user, navigate, getUserHomePath])
 
   // Read portal from URL query parameter
   const searchParams = new URLSearchParams(location.search)

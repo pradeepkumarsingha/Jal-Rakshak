@@ -137,7 +137,7 @@ export default function AdminDashboard() {
             </span>
           </div>
 
-          <FloodRiskMap height="480px" center={[20.4782, 85.8621]} zoom={13} showControls={true} />
+          <FloodRiskMap height="480px" zoom={13} showControls={true} />
         </div>
 
         {/* Reservoir Telemetry & Inflow Rechart */}

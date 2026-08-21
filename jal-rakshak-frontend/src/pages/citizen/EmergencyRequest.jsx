@@ -32,17 +32,17 @@ export default function EmergencyRequest() {
   // Wizard form data
   const [sosData, setSosData] = useState({
     category: 'Stranded on Rooftop / High Ground',
-    location: user?.location?.address || 'Bidanasi Lower Basti, Ward 4, Cuttack',
-    landmark: 'Near Water Tower No. 2, Blue single-storey roof',
-    lat: 20.4798,
-    lng: 85.8510,
-    peopleCount: 5,
-    victims: { infants: 1, children: 1, adults: 2, elderly: 1, pregnant: 0 },
+    location: user?.location?.address || 'Current User GPS Location',
+    landmark: 'High Ground / Visible Landmark',
+    lat: user?.location?.coordinates ? user.location.coordinates[1] : 20.2961,
+    lng: user?.location?.coordinates ? user.location.coordinates[0] : 85.8245,
+    peopleCount: 1,
+    victims: { infants: 0, children: 0, adults: 1, elderly: 0, pregnant: 0 },
     waterDepth: 'Waist Level (~100 cm)',
-    description: 'Ground floor completely flooded. Inflowing current strong. Senior citizen needs assistance.',
-    contactName: user?.name || 'Concerned Resident',
-    contactPhone: user?.phone || '+91 98610 23412',
-    hasMedicalNeed: true,
+    description: 'Urgent rescue assistance required due to rising water levels.',
+    contactName: user?.name || 'Citizen',
+    contactPhone: user?.phone || '+91 ',
+    hasMedicalNeed: false,
   })
 
   const handleLocateMe = () => {
@@ -54,13 +54,14 @@ export default function EmergencyRequest() {
             ...prev,
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
-            location: `GPS: ${pos.coords.latitude.toFixed(4)}° N, ${pos.coords.longitude.toFixed(4)}° E (Near Cuttack)`,
+            location: `GPS Pin: ${pos.coords.latitude.toFixed(4)}° N, ${pos.coords.longitude.toFixed(4)}° E`,
           }))
           setGpsLoading(false)
         },
         () => {
           setGpsLoading(false)
-        }
+        },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
       )
     } else {
       setGpsLoading(false)

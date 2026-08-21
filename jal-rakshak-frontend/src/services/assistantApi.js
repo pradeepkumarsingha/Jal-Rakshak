@@ -1,8 +1,22 @@
+import axios from 'axios'
 import api from './api'
+
+const CHATBOT_BASE_URL = (
+  import.meta.env.VITE_CHATBOT_URL ||
+  'https://jadlrakshak-ai-adviser.vercel.app'
+).replace(/\/+$/, '')
+
+const chatbotClient = axios.create({
+  baseURL: CHATBOT_BASE_URL,
+  timeout: 12000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
 
 export const assistantApi = {
   chat: async ({ message, language = 'en', history = [], location = null }) => {
-    // Map history to match FastAPI Backend ChatMessage schema
+    // Map history to match ChatMessage schema
     const chat_history = history.map(msg => ({
       role: msg.sender === 'user' ? 'user' : 'assistant',
       content: msg.text || msg.content || ''
@@ -20,33 +34,68 @@ export const assistantApi = {
       }
     }
 
-    try {
-      const res = await api.post('/api/chat', {
-        message,
-        language,
-        chat_history,
-        location: resolvedLocation,
-        scenario: "Live Real-Time Monitoring"
-      })
+    const payload = {
+      message,
+      language,
+      chat_history,
+      location: resolvedLocation,
+      scenario: "Live Real-Time Monitoring"
+    }
 
-      return {
-        reply: res.data.reply,
-        citations: res.data.citations || [],
-        suggestedActions: [],
-        nearestShelters: res.data.nearest_shelters || [],
-        helplines: res.data.helplines || {},
-        sosAction: res.data.sos_action,
-        liveWeather: res.data.live_weather,
-        resolvedLocation: res.data.resolved_location,
-        timestamp: new Date().toISOString()
+    let rawData = null
+
+    // 1. Try deployed Chatbot URL endpoints (api/chat, chat, or assistant/chat)
+    try {
+      const endpoints = ['/api/chat', '/chat', '/assistant/chat', '']
+      for (const endpoint of endpoints) {
+        try {
+          const directRes = await chatbotClient.post(endpoint, payload)
+          if (directRes && directRes.data) {
+            rawData = directRes.data?.data || directRes.data
+            break
+          }
+        } catch (err) {
+          // If 404 or 405 on subpath, continue probing next path
+          if (err.response && (err.response.status === 404 || err.response.status === 405)) {
+            continue
+          }
+          throw err
+        }
       }
-    } catch (err) {
-      console.warn("Could not connect to live backend. Falling back to sandbox simulator:", err)
-      // Intelligent knowledge base simulation for Jal Rakshak AI
-      const q = message.toLowerCase()
-      let reply = ''
-      let citations = ['National Disaster Management Authority (NDMA) Guidelines on Flood Management (2024)', 'Central Water Commission (CWC) Standard Operating Procedures']
-      let suggestedActions = []
+    } catch (deployedErr) {
+      console.warn(`Deployed chatbot at ${CHATBOT_BASE_URL} unreachable (${deployedErr.message}). Trying backend /api/chat proxy...`)
+    }
+
+    // 2. If direct deployed URL didn't return data, try local backend /api/chat
+    if (!rawData) {
+      try {
+        const res = await api.post('/api/chat', payload)
+        rawData = res.data?.data || res.data
+      } catch (backendErr) {
+        console.warn("Backend /api/chat unreachable:", backendErr.message)
+      }
+    }
+
+    // 3. If live response obtained from either source, parse and return
+    if (rawData) {
+      return {
+        reply: rawData.reply || rawData.message || rawData.response || rawData.text || rawData.answer || 'Advisory received. Please monitor local emergency channels.',
+        citations: rawData.citations || ['National Disaster Management Authority (NDMA) Guidelines'],
+        suggestedActions: rawData.suggestedActions || rawData.suggested_actions || [],
+        nearestShelters: rawData.nearest_shelters || rawData.nearestShelters || [],
+        helplines: rawData.helplines || { Emergency: '112', NDRF: '1078' },
+        sosAction: rawData.sos_action || rawData.sosAction,
+        liveWeather: rawData.live_weather || rawData.liveWeather,
+        resolvedLocation: rawData.resolved_location || rawData.resolvedLocation,
+        timestamp: rawData.timestamp || new Date().toISOString()
+      }
+    }
+
+    // 4. Intelligent knowledge base simulation for Jal Rakshak AI (if offline or servers down)
+    const q = message.toLowerCase()
+    let reply = ''
+    let citations = ['National Disaster Management Authority (NDMA) Guidelines on Flood Management (2024)', 'Central Water Commission (CWC) Standard Operating Procedures']
+    let suggestedActions = []
 
       if (q.includes('purif') || q.includes('clean water') || q.includes('पानी साफ') || q.includes('ପାଣି')) {
         reply = `**Safe Drinking Water Guidelines during Floods:**\n\n1. **Boil Water Rapidly:** Boil flood/tap water vigorously for at least 1-3 minutes to kill waterborne bacteria and viruses.\n2. **Halazone / Chlorine Tablets:** Use 1 chlorine tablet per 5 liters of clear water; stir and allow to stand for 30 minutes before drinking.\n3. **Do NOT Drink Contaminated Flood Water:** It carries sewage runoff, industrial effluents, and leptospirosis pathogens.\n4. **ORS Packets:** Distribute Oral Rehydration Salts to prevent severe dehydration in children and elderly.`
@@ -92,6 +141,5 @@ export const assistantApi = {
         resolvedLocation: "Simulated Sandbox",
         timestamp: new Date().toISOString()
       }
-    }
   },
 }

@@ -157,7 +157,7 @@ export default function Landing() {
                 <div className="p-3 bg-brand-950/60 rounded-2xl border border-brand-800/60 flex items-center justify-between text-xs">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-brand-300">Local Vulnerability Index</span>
-                    <div className="font-extrabold text-base text-white mt-0.5">Cuttack District: {riskScore}/100</div>
+                    <div className="font-extrabold text-base text-white mt-0.5">Regional Basin Risk: {riskScore ? `${riskScore}/100` : 'Telemetry Active'}</div>
                   </div>
                   <Link
                     to="/dashboard"

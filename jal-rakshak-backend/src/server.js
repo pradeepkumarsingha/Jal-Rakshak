@@ -36,6 +36,8 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'https://jadlrakshak-ai-adviser.vercel.app',
+  'https://jalrakshak-ai-adviser.vercel.app',
+  'https://jalrakshak-ai-advisor.vercel.app',
 ];
 
 app.use(

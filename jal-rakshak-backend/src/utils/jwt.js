@@ -1,9 +1,9 @@
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'jal_rakshak_super_secret_jwt_key_2024_disaster_response_platform';
-const JWT_EXPIRE = process.env.JWT_EXPIRE || '7d';
+const JWT_EXPIRE = process.env.JWT_EXPIRE || '30d';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'jal_rakshak_super_secret_refresh_key_2024_secure_token';
-const JWT_REFRESH_EXPIRE = process.env.JWT_REFRESH_EXPIRE || '30d';
+const JWT_REFRESH_EXPIRE = process.env.JWT_REFRESH_EXPIRE || '90d';
 
 /**
  * Generate Access Token

@@ -11,11 +11,20 @@ const logger = require('../utils/logger');
  */
 const predictFlood = async (req, res, next) => {
   try {
-    const { latitude, longitude, coordinates, location, locationName } = req.body;
+    const { latitude, longitude, coordinates, location, locationName, simulationMode } = req.body;
 
-    const lat = latitude !== undefined ? Number(latitude) : coordinates ? coordinates[1] : 20.4625;
-    const lng = longitude !== undefined ? Number(longitude) : coordinates ? coordinates[0] : 85.8830;
-    const locName = locationName || (typeof location === 'string' ? location : 'Cuttack, Odisha');
+    const lat = latitude !== undefined ? Number(latitude) : coordinates ? Number(coordinates[1]) : null;
+    const lng = longitude !== undefined ? Number(longitude) : coordinates ? Number(coordinates[0]) : null;
+
+    if (lat === null || isNaN(lat) || lat < -90 || lat > 90) {
+      return errorResponse(res, 'Valid latitude between -90 and 90 is required.', 400);
+    }
+    if (lng === null || isNaN(lng) || lng < -180 || lng > 180) {
+      return errorResponse(res, 'Valid longitude between -180 and 180 is required.', 400);
+    }
+
+    const locName = locationName || (typeof location === 'string' ? location : 'Current location');
+    const isSim = Boolean(simulationMode);
 
     const rawPrediction = await aiService.predictFlood({
       latitude: lat,
@@ -23,50 +32,60 @@ const predictFlood = async (req, res, next) => {
       locationName: locName,
       location: locName,
       coordinates: [lng, lat],
+      simulationMode: isSim,
     });
 
+    const calculatedScore = rawPrediction.riskScore !== undefined ? rawPrediction.riskScore : null;
+    const calculatedLevel = rawPrediction.riskLevel || (calculatedScore !== null ? (calculatedScore >= 75 ? 'CRITICAL' : calculatedScore >= 50 ? 'HIGH' : 'LOW') : 'UNKNOWN');
+
     const formattedData = {
-      riskScore: rawPrediction.riskScore || 88,
-      riskLevel: rawPrediction.riskLevel || 'CRITICAL',
+      riskScore: calculatedScore,
+      riskLevel: calculatedLevel,
       location: {
         latitude: lat,
         longitude: lng,
         name: locName,
       },
       forecast: {
-        current: { score: rawPrediction.riskScore || 88, level: rawPrediction.riskLevel || 'CRITICAL' },
-        '6h': { score: Math.min(100, (rawPrediction.riskScore || 88) + 2), level: 'CRITICAL' },
-        '12h': { score: Math.min(100, (rawPrediction.riskScore || 88) + 4), level: 'CRITICAL' },
-        '24h': { score: Math.max(10, (rawPrediction.riskScore || 88) - 2), level: 'CRITICAL' },
+        current: { score: calculatedScore, level: calculatedLevel },
+        '6h': { score: calculatedScore !== null ? Math.min(100, calculatedScore + 2) : null, level: calculatedLevel },
+        '12h': { score: calculatedScore !== null ? Math.min(100, calculatedScore + 4) : null, level: calculatedLevel },
+        '24h': { score: calculatedScore !== null ? Math.max(10, calculatedScore - 2) : null, level: calculatedLevel },
       },
-      contributingFactors: [
-        { factor: 'Upstream inflow', value: 'Heavy (+14%)', impact: 14 },
-        { factor: 'Soil saturation', value: '92%', impact: 20 },
-        { factor: 'Drainage condition', value: '45% choked', impact: 12 },
+      factors: rawPrediction.factors || [
+        { name: 'Catchment Runoff', value: `${calculatedScore || 20}% Index`, impact: 'MEDIUM' },
+        { name: 'Soil Moisture', value: `${rawPrediction.soilSaturationPct || 40}% Saturated`, impact: 'LOW' },
       ],
-      predictedInundationDepth: rawPrediction.predictedInundationDepth || '1.45 meters',
-      modelVersion: rawPrediction.modelVersion || 'flood-model-v1',
+      contributingFactors: rawPrediction.factors || [],
+      predictedInundationDepth: rawPrediction.predictedInundationDepth || '0.15 meters',
+      modelVersion: rawPrediction.modelVersion || 'JalRakshak-HydroML-v2.4',
+      source: isSim ? 'simulation' : (rawPrediction.source || 'live'),
+      isSimulation: isSim || Boolean(rawPrediction.isSimulation),
       lastUpdated: new Date().toISOString(),
-      disclaimer: 'AI prediction represents statistical hydrological estimates, not a guaranteed physical measurement.',
+      disclaimer: isSim
+        ? 'Demonstration simulation scenario data.'
+        : 'AI prediction represents statistical hydrological estimates based on real-time precipitation and terrain topology.',
     };
 
     // Save record to DB
-    try {
-      await FloodPrediction.create({
-        location: {
-          type: 'Point',
-          coordinates: [lng, lat],
-        },
-        locationName: locName,
-        riskScore: formattedData.riskScore,
-        riskLevel: formattedData.riskLevel,
-        predictedInundationDepth: formattedData.predictedInundationDepth,
-        rainfallForecastMm: 45.2,
-        soilSaturationPct: 92,
-        contributingFactors: formattedData.contributingFactors,
-      });
-    } catch (err) {
-      logger.warn(`Could not persist flood prediction to DB: ${err.message}`);
+    if (!isSim && calculatedScore !== null) {
+      try {
+        await FloodPrediction.create({
+          location: {
+            type: 'Point',
+            coordinates: [lng, lat],
+          },
+          locationName: locName,
+          riskScore: formattedData.riskScore,
+          riskLevel: formattedData.riskLevel,
+          predictedInundationDepth: formattedData.predictedInundationDepth,
+          rainfallForecastMm: rawPrediction.rainfallForecastMm || 0,
+          soilSaturationPct: rawPrediction.soilSaturationPct || 40,
+          contributingFactors: formattedData.contributingFactors,
+        });
+      } catch (err) {
+        logger.warn(`Could not persist flood prediction to DB: ${err.message}`);
+      }
     }
 
     return successResponse(res, formattedData, 'Flood prediction calculated successfully');
@@ -82,8 +101,14 @@ const predictFlood = async (req, res, next) => {
  */
 const getForecast = async (req, res, next) => {
   try {
-    const { latitude, longitude, hours } = req.query;
-    const forecast = await aiService.getForecast({ latitude, longitude, hours: hours || 24 });
+    const { latitude, longitude, hours, simulationMode } = req.query;
+    const isSim = simulationMode === 'true' || simulationMode === true;
+    const forecast = await aiService.getForecast({
+      latitude: latitude ? Number(latitude) : undefined,
+      longitude: longitude ? Number(longitude) : undefined,
+      hours: hours ? Number(hours) : 24,
+      simulationMode: isSim,
+    });
     return successResponse(res, forecast, 'Flood forecast retrieved successfully');
   } catch (error) {
     next(error);

@@ -1,12 +1,13 @@
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './context/AuthContext'
+import { LocationProvider } from './context/LocationContext'
 import { LanguageProvider } from './context/LanguageContext'
 import { AlertProvider, useAlert } from './context/AlertContext'
-import { FloodDataProvider } from './context/FloodDataContext'
+import { FloodDataProvider, useFloodData } from './context/FloodDataContext'
 import AppRoutes from './routes'
 import ErrorBoundary from './components/common/ErrorBoundary'
-import { AlertTriangle, CheckCircle, Info, XCircle, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Info, XCircle, X, Sliders } from 'lucide-react'
 import './i18n'
 
 const queryClient = new QueryClient({
@@ -17,6 +18,33 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+// Persistent banner when simulation mode is active
+function SimulationBanner() {
+  const { dataMode, changeDataMode } = useFloodData()
+
+  if (dataMode === 'live') return null
+
+  return (
+    <div className="bg-amber-500 text-slate-950 font-bold px-4 py-2 text-xs sm:text-sm flex items-center justify-between shadow-md z-50 sticky top-0 border-b border-amber-600">
+      <div className="flex items-center gap-2 max-w-6xl mx-auto truncate">
+        <Sliders className="w-4 h-4 shrink-0 text-slate-950 animate-pulse" />
+        <span className="uppercase tracking-wide font-black bg-slate-950 text-amber-400 px-2 py-0.5 rounded text-[10px]">
+          SIMULATION ACTIVE
+        </span>
+        <span className="truncate">
+          SIMULATION MODE ACTIVE — The dashboard is displaying demonstration data and is not based on your current GPS location.
+        </span>
+      </div>
+      <button
+        onClick={() => changeDataMode('live')}
+        className="ml-3 shrink-0 bg-slate-950 hover:bg-slate-900 text-amber-300 px-2.5 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer"
+      >
+        Exit Simulation &rarr;
+      </button>
+    </div>
+  )
+}
 
 // Toast notification component inside Alert context
 function ToastContainer() {
@@ -63,16 +91,19 @@ export default function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <LanguageProvider>
-            <AlertProvider>
-              <FloodDataProvider>
-                <div className="app-root min-h-screen bg-slate-50 text-slate-900 antialiased font-sans">
-                  <AppRoutes />
-                  <ToastContainer />
-                </div>
-              </FloodDataProvider>
-            </AlertProvider>
-          </LanguageProvider>
+          <LocationProvider>
+            <LanguageProvider>
+              <AlertProvider>
+                <FloodDataProvider>
+                  <div className="app-root min-h-screen bg-slate-50 text-slate-900 antialiased font-sans">
+                    <SimulationBanner />
+                    <AppRoutes />
+                    <ToastContainer />
+                  </div>
+                </FloodDataProvider>
+              </AlertProvider>
+            </LanguageProvider>
+          </LocationProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

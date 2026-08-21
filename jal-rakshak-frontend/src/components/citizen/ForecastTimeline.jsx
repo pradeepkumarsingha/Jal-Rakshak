@@ -7,19 +7,33 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   ReferenceLine,
 } from 'recharts'
 import { CloudRain, Waves, AlertTriangle } from 'lucide-react'
 
 export default function ForecastTimeline({ forecast = [] }) {
+  if (!forecast || forecast.length === 0) {
+    return (
+      <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100 text-center py-10 text-xs text-slate-500">
+        <Waves className="w-8 h-8 mx-auto text-slate-300 mb-2 animate-pulse" />
+        <p className="font-bold text-slate-700">Predictive Hydrograph Timeline</p>
+        <p className="text-[11px] text-slate-400 mt-1">
+          Hydrological runoff forecast for this coordinate is synchronizing...
+        </p>
+      </div>
+    )
+  }
+
   const chartData = forecast.map((f) => ({
     time: f.timeLabel || f.time,
-    rainMm: f.rainMm,
-    waterLevel: f.waterLevel,
-    riskScore: f.riskScore,
-    dangerMark: 26.41, // Naraj Danger level
+    rainMm: f.rainMm !== undefined ? f.rainMm : 0,
+    waterLevel: f.waterLevel !== undefined ? f.waterLevel : 0,
+    riskScore: f.riskScore !== undefined ? f.riskScore : 0,
   }))
+
+  const waterLevels = chartData.map((d) => d.waterLevel).filter((v) => typeof v === 'number' && !isNaN(v))
+  const minWater = waterLevels.length ? Math.max(0, Math.floor(Math.min(...waterLevels) - 1)) : 20
+  const maxWater = waterLevels.length ? Math.ceil(Math.max(...waterLevels) + 1) : 30
 
   return (
     <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100">
@@ -34,25 +48,22 @@ export default function ForecastTimeline({ forecast = [] }) {
             </h3>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Predictive AI correlation between upstream dam discharge and rainfall intensity
+            Predictive AI correlation between catchment runoff and precipitation intensity
           </p>
         </div>
 
-        <div className="flex items-center gap-3 text-xs">
+        <div className="flex items-center gap-3 text-xs flex-wrap">
           <span className="flex items-center gap-1 font-semibold text-brand-600">
             <span className="w-3 h-3 rounded-full bg-brand-500"></span> Water Level (Meters)
           </span>
           <span className="flex items-center gap-1 font-semibold text-cyan-500">
             <span className="w-3 h-3 rounded bg-cyan-400"></span> Rain (mm/hr)
           </span>
-          <span className="flex items-center gap-1 font-semibold text-red-600">
-            <span className="w-3 h-0.5 bg-red-600"></span> Danger Mark (26.41m)
-          </span>
         </div>
       </div>
 
       {/* Chart */}
-      <div className="h-64 sm:h-72 w-full">
+      <div className="h-64 sm:h-72 w-full min-h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
@@ -64,7 +75,7 @@ export default function ForecastTimeline({ forecast = [] }) {
             <XAxis dataKey="time" stroke="#94A3B8" fontSize={11} tickLine={false} />
             <YAxis
               yAxisId="water"
-              domain={[23, 29]}
+              domain={[minWater, maxWater]}
               stroke="#0284C7"
               fontSize={11}
               tickFormatter={(v) => `${v}m`}
@@ -85,7 +96,7 @@ export default function ForecastTimeline({ forecast = [] }) {
                     <div className="bg-slate-900 text-white p-3 rounded-xl shadow-xl text-xs border border-slate-800">
                       <p className="font-bold text-brand-300 mb-1">{label} Forecast Point</p>
                       <p className="text-slate-300">
-                        River Level: <strong className="text-white">{data.waterLevel} meters</strong>
+                        River / Runoff Level: <strong className="text-white">{data.waterLevel}m</strong>
                       </p>
                       <p className="text-slate-300">
                         Rainfall: <strong className="text-cyan-300">{data.rainMm} mm/hr</strong>
@@ -98,13 +109,6 @@ export default function ForecastTimeline({ forecast = [] }) {
                 }
                 return null
               }}
-            />
-            <ReferenceLine
-              yAxisId="water"
-              y={26.41}
-              stroke="#DC2626"
-              strokeDasharray="4 4"
-              label={{ value: 'Danger 26.41m', fill: '#DC2626', fontSize: 10, position: 'insideTopRight' }}
             />
             <Bar yAxisId="rain" dataKey="rainMm" fill="#38BDF8" radius={[4, 4, 0, 0]} maxBarSize={30} opacity={0.65} />
             <Area

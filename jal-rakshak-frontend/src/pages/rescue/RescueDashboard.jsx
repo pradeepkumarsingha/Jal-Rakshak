@@ -104,7 +104,7 @@ export default function RescueDashboard() {
             </span>
           </div>
 
-          <FloodRiskMap height="500px" center={[20.4782, 85.8621]} zoom={13} showControls={true} />
+          <FloodRiskMap height="500px" zoom={13} showControls={true} />
         </div>
 
         {/* Assigned Missions Feed */}
