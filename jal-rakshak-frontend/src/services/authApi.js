@@ -53,4 +53,18 @@ export const authApi = {
       throw new Error(errorMsg)
     }
   },
+
+  resetPassword: async ({ token, password }) => {
+    try {
+      const res = await api.post('/api/v1/auth/reset-password', { token, password })
+      return res.data
+    } catch (err) {
+      const errorMsg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        'Failed to reset password. The link may have expired.'
+      throw new Error(errorMsg)
+    }
+  },
 }

@@ -124,32 +124,13 @@ export default function Login() {
 
     if (res.ok) {
       setForgotSuccess(true)
-      if (res.data?.newPasswordPreview) {
-        setGeneratedPassword(res.data.newPasswordPreview)
-      }
       showToast({
-        title: 'Password Reset Initiated',
-        message: 'A temporary access password has been created and sent to your email.',
+        title: 'Reset Link Sent',
+        message: 'A secure password reset link has been dispatched to your email inbox.',
         type: 'success',
       })
     } else {
       setForgotError(res.error || 'Failed to send password reset. Please check your email.')
-    }
-  }
-
-  const handleUseNewPassword = () => {
-    setEmail(forgotEmail.trim())
-    if (generatedPassword) {
-      setPassword(generatedPassword)
-    }
-    setShowForgotModal(false)
-  }
-
-  const handleCopyPassword = () => {
-    if (generatedPassword) {
-      navigator.clipboard.writeText(generatedPassword)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
     }
   }
 
@@ -158,35 +139,32 @@ export default function Login() {
       {/* Background Ambience Glow */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="max-w-md w-full bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl relative z-10 space-y-6">
-        {/* Brand Header */}
-        <div className="flex flex-col items-center text-center space-y-2">
-          <Link to="/" className="transition hover:scale-105">
-            <JalRakshakLogo variant="stacked" size="lg" />
-          </Link>
-          <div className="pt-2">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Sign In to Your Account
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Enter your credentials to access flood intelligence and emergency response tools.
-            </p>
+      {/* Main Card */}
+      <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200/80 shadow-2xl p-6 sm:p-8 relative z-10 animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center mb-3">
+            <JalRakshakLogo size={56} className="drop-shadow-md" />
           </div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Welcome Back</h1>
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            Sign in to access real-time flood monitoring & disaster response
+          </p>
         </div>
 
-        {/* Error Alert */}
+        {/* Global Error Banner */}
         {errorMessage && (
-          <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5 animate-in fade-in">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
-            <div className="flex-1 font-medium">{errorMessage}</div>
+          <div className="mb-6 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5 animate-in fade-in">
+            <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <span className="font-medium leading-relaxed">{errorMessage}</span>
           </div>
         )}
 
-        {/* Main Login Form */}
+        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Email Input */}
+          {/* Email */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+            <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
               Email Address
             </label>
             <div className="relative">
@@ -197,21 +175,21 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs sm:text-sm outline-none focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 outline-none transition focus:bg-white focus:border-cyan-600 focus:ring-4 focus:ring-cyan-500/10 placeholder:text-slate-400"
               />
             </div>
           </div>
 
-          {/* Password Input */}
+          {/* Password */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-bold text-slate-700">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                 Password
               </label>
               <button
                 type="button"
                 onClick={openForgotPassword}
-                className="text-[11px] font-semibold text-cyan-600 hover:text-cyan-700 transition cursor-pointer"
+                className="text-xs font-bold text-cyan-600 hover:text-cyan-700 transition"
               >
                 Forgot password?
               </button>
@@ -223,14 +201,13 @@ export default function Login() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your account password"
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs sm:text-sm outline-none focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition"
+                placeholder="••••••••"
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 outline-none transition focus:bg-white focus:border-cyan-600 focus:ring-4 focus:ring-cyan-500/10 placeholder:text-slate-400"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
-                tabIndex={-1}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -238,13 +215,13 @@ export default function Login() {
           </div>
 
           {/* Remember Me */}
-          <div className="flex items-center justify-between pt-1 text-xs">
-            <label className="flex items-center gap-2 text-slate-600 cursor-pointer select-none">
+          <div className="flex items-center">
+            <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-600 select-none">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 w-3.5 h-3.5"
+                className="w-4 h-4 rounded text-cyan-600 border-slate-300 focus:ring-cyan-500"
               />
               <span>Remember this device</span>
             </label>
@@ -254,13 +231,10 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-600 via-brand-600 to-blue-700 hover:from-cyan-700 hover:to-blue-800 text-white font-bold text-xs sm:text-sm transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+            className="w-full py-3 px-4 bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-lg shadow-blue-950/20 flex items-center justify-center gap-2 transition duration-200 active:scale-[0.98] disabled:opacity-70 cursor-pointer"
           >
             {loading ? (
-              <>
-                <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                <span>Verifying Credentials...</span>
-              </>
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <>
                 <span>Sign In to Jal Rakshak</span>
@@ -270,13 +244,41 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Register Link */}
-        <div className="text-center text-xs text-slate-500 pt-2">
+        {/* Demo Credentials Quick-Fill Pill Box */}
+        <div className="mt-6 pt-5 border-t border-slate-100">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span>Instant Demo Accounts</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => handleFillDemo('citizen')}
+              className="px-2 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-cyan-50 hover:border-cyan-300 text-[11px] font-bold text-slate-700 hover:text-cyan-800 transition text-center"
+            >
+              Citizen
+            </button>
+            <button
+              type="button"
+              onClick={() => handleFillDemo('rescue')}
+              className="px-2 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-[11px] font-bold text-slate-700 hover:text-emerald-800 transition text-center"
+            >
+              Rescue NDRF
+            </button>
+            <button
+              type="button"
+              onClick={() => handleFillDemo('admin')}
+              className="px-2 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 text-[11px] font-bold text-slate-700 hover:text-indigo-800 transition text-center"
+            >
+              State Admin
+            </button>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-6 text-center text-xs text-slate-500">
           Don't have an account yet?{' '}
-          <Link
-            to="/register"
-            className="font-bold text-cyan-600 hover:text-cyan-700 underline underline-offset-2"
-          >
+          <Link to="/register" className="font-bold text-cyan-600 hover:text-cyan-700 transition">
             Register as Citizen
           </Link>
         </div>
@@ -303,7 +305,7 @@ export default function Login() {
             {!forgotSuccess ? (
               <form onSubmit={handleForgotSubmit} className="space-y-3 text-xs">
                 <p className="text-slate-500 leading-relaxed">
-                  Enter your registered account email. We will generate and securely deliver a temporary password to your inbox.
+                  Enter your registered account email. We will send a secure, personalized password reset link straight to your inbox.
                 </p>
 
                 {forgotError && (
@@ -320,7 +322,7 @@ export default function Login() {
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     placeholder="name@example.com"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 outline-none focus:ring-2 focus:ring-cyan-500"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 outline-none focus:ring-2 focus:ring-cyan-500"
                   />
                 </div>
 
@@ -337,50 +339,50 @@ export default function Login() {
                     disabled={forgotLoading}
                     className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold disabled:opacity-60 flex items-center gap-1.5 shadow"
                   >
-                    {forgotLoading ? 'Processing...' : 'Send Temporary Password'}
+                    {forgotLoading ? 'Sending Link...' : 'Send Reset Link'}
                   </button>
                 </div>
               </form>
             ) : (
-              <div className="space-y-3 text-xs">
-                <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-800 space-y-1.5">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Password Reset Initiated</span>
+              <div className="space-y-4 text-xs">
+                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-900 space-y-2">
+                  <div className="flex items-center gap-2 font-black text-sm text-emerald-700">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <span>Reset Link Sent!</span>
                   </div>
-                  <p className="text-[11px] leading-relaxed">
-                    A temporary login password has been generated for <strong>{forgotEmail}</strong>.
+                  <p className="text-xs text-emerald-800 leading-relaxed">
+                    We have dispatched a secure password reset link to <strong>{forgotEmail}</strong>.
                   </p>
                 </div>
 
-                {generatedPassword && (
-                  <div className="p-3 bg-slate-900 text-white rounded-2xl space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-                      Temporary Access Password:
-                    </span>
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-sm font-bold text-emerald-400">
-                        {generatedPassword}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleCopyPassword}
-                        className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] flex items-center gap-1 text-slate-300"
-                      >
-                        {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                        <span>{copied ? 'Copied' : 'Copy'}</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <div className="p-3 bg-sky-50 rounded-2xl border border-sky-100 text-sky-800 text-[11px] leading-relaxed space-y-1">
+                  <p className="font-bold flex items-center gap-1">
+                    <span>📩 Next Steps:</span>
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5 text-slate-600">
+                    <li>Open your email inbox and click <strong>"Reset Your Password"</strong>.</li>
+                    <li>The link is active for <strong>30 minutes</strong>.</li>
+                    <li>If you don't see it, please check your <strong>Spam/Junk</strong> folder.</li>
+                  </ul>
+                </div>
 
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="flex justify-between items-center pt-2">
                   <button
                     type="button"
-                    onClick={handleUseNewPassword}
-                    className="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold shadow"
+                    onClick={() => {
+                      setForgotSuccess(false)
+                      setForgotError('')
+                    }}
+                    className="text-cyan-700 hover:underline font-bold text-[11px]"
                   >
-                    Apply & Sign In
+                    Resend link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotModal(false)}
+                    className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold shadow"
+                  >
+                    Got It, Close
                   </button>
                 </div>
               </div>

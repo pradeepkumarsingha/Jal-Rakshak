@@ -212,6 +212,92 @@ Odisha State Emergency Operations Center`;
     </html>
   `;
 
+/**
+ * Send Password Reset Link Email with Action Button
+ */
+const sendResetPasswordEmail = async ({ to, name, resetUrl }) => {
+  const subject = '🔒 Reset Your Password - Jal Rakshak AI';
+
+  const text = `Hello ${name || 'Citizen'},
+
+A password reset request was received for your Jal Rakshak AI account.
+
+To reset your password, please click the following secure link or paste it into your browser:
+${resetUrl}
+
+This link is valid for 30 minutes. If you did not request a password reset, you can safely ignore this email.
+
+Stay Safe,
+Jal Rakshak Disaster Response Team
+Odisha State Emergency Operations Center (SEOC)`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Reset Your Password - Jal Rakshak AI</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; margin: 0; padding: 24px 12px; color: #1e293b; }
+        .wrapper { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.25); border: 1px solid #e2e8f0; }
+        .header { background: linear-gradient(135deg, #0f172a 0%, #0369a1 50%, #0284c7 100%); padding: 36px 28px 30px; text-align: center; color: #ffffff; }
+        .badge { display: inline-block; padding: 4px 12px; background: rgba(255,255,255,0.15); backdrop-filter: blur(8px); border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #38bdf8; margin-bottom: 12px; border: 1px solid rgba(56,189,248,0.3); }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #ffffff; }
+        .header p { margin: 8px 0 0 0; font-size: 13px; color: #bae6fd; font-weight: 500; }
+        .content { padding: 36px 32px; background: #ffffff; }
+        .greeting { font-size: 17px; font-weight: 700; margin-bottom: 12px; color: #0f172a; }
+        .message { font-size: 14px; line-height: 1.65; color: #475569; margin-bottom: 28px; }
+        .btn-wrapper { text-align: center; margin: 32px 0; }
+        .btn { background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #ffffff !important; text-decoration: none; padding: 15px 36px; border-radius: 12px; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 8px 20px rgba(2,132,199,0.35); transition: all 0.2s ease; letter-spacing: 0.3px; }
+        .expiry-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 14px 18px; margin-bottom: 24px; display: flex; align-items: center; }
+        .expiry-text { font-size: 13px; color: #0369a1; font-weight: 500; line-height: 1.5; }
+        .fallback { font-size: 12px; color: #64748b; line-height: 1.6; word-break: break-all; padding: 16px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 24px; }
+        .fallback-link { color: #0284c7; text-decoration: underline; }
+        .security-footer { font-size: 12px; color: #94a3b8; line-height: 1.5; padding-top: 20px; border-top: 1px solid #f1f5f9; }
+        .footer { background: #f8fafc; padding: 22px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+      </style>
+    </head>
+    <body>
+      <div class="wrapper">
+        <div class="header">
+          <div class="badge">Disaster Response Network</div>
+          <h1>🌊 Jal Rakshak AI</h1>
+          <p>Flood Intelligence & Emergency Command</p>
+        </div>
+        <div class="content">
+          <div class="greeting">Namaste ${name || 'Citizen'},</div>
+          <div class="message">
+            We received a request to reset the password for your Jal Rakshak account. Click the button below to securely choose your new password.
+          </div>
+          
+          <div class="btn-wrapper">
+            <a href="${resetUrl}" class="btn" target="_blank">Reset Your Password →</a>
+          </div>
+
+          <div class="expiry-box">
+            <div class="expiry-text">
+              ⏱ <strong>Security Expiry:</strong> This password reset link is strictly valid for the next <strong>30 minutes</strong>.
+            </div>
+          </div>
+
+          <div class="fallback">
+            <strong>Button not working?</strong> Copy and paste this URL into your web browser:<br/>
+            <a href="${resetUrl}" class="fallback-link">${resetUrl}</a>
+          </div>
+
+          <div class="security-footer">
+            🛡️ <strong>Did not request this?</strong> If you didn't request a password reset, you can safely disregard this email. Your password will remain unchanged. For emergency support, contact our 24/7 hotline at <strong>1070 / 112</strong>.
+          </div>
+        </div>
+        <div class="footer">
+          © ${new Date().getFullYear()} Jal Rakshak AI • State Emergency Operations Center (SEOC), Odisha • NDRF & ODRAF Response Network
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
   return sendEmail({
     to,
     subject,
@@ -223,5 +309,6 @@ Odisha State Emergency Operations Center`;
 module.exports = {
   sendEmail,
   sendNewPasswordEmail,
+  sendResetPasswordEmail,
 };
 

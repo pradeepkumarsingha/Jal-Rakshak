@@ -67,7 +67,7 @@ describe('Auth API Endpoints', () => {
     expect(res.body.success).toBe(false);
   });
 
-  it('should accept forgot-password and generate new password for citizen', async () => {
+  it('should accept forgot-password and dispatch reset link for citizen', async () => {
     const res = await request(app)
       .post('/api/v1/auth/forgot-password')
       .send({
@@ -77,6 +77,6 @@ describe('Auth API Endpoints', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.message).toContain('A new password has been enabled');
+    expect(res.body.message).toContain('reset link');
   });
 });

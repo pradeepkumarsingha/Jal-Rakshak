@@ -221,6 +221,29 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const resetPassword = async ({ token, password }) => {
+    setLoading(true)
+    try {
+      const res = await api.post('/api/v1/auth/reset-password', {
+        token,
+        password,
+      })
+      return {
+        ok: true,
+        message: res.data?.message || 'Password has been reset successfully.',
+      }
+    } catch (err) {
+      const errorMsg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        'Failed to reset password. The link may have expired.'
+      return { ok: false, error: errorMsg }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const value = {
     user,
     token,
@@ -231,6 +254,7 @@ export function AuthProvider({ children }) {
     register,
     logout,
     forgotPassword,
+    resetPassword,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

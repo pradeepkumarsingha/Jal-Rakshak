@@ -5,7 +5,7 @@ const RefreshToken = require('../models/RefreshToken');
 const { ErrorResponse } = require('../middleware/errorHandler');
 const { successResponse, errorResponse } = require('../utils/helpers');
 const { verifyRefreshToken, generateToken, generateRefreshToken } = require('../utils/jwt');
-const { sendNewPasswordEmail } = require('../services/emailService');
+const { sendNewPasswordEmail, sendResetPasswordEmail } = require('../services/emailService');
 const logger = require('../utils/logger');
 
 const isDbReady = () => mongoose.connection.readyState === 1;
@@ -707,8 +707,11 @@ const generateRandomPassword = () => {
   return password;
 };
 
+// In-memory token store for offline/demo fallback
+const MEMORY_RESET_TOKENS = new Map();
+
 /**
- * @desc    Forgot Password - Generates and enables a new password and emails it to the citizen
+ * @desc    Forgot Password - Sends a secure password reset link to user's registered email
  * @route   POST /api/v1/auth/forgot-password
  * @access  Public
  */
@@ -727,31 +730,37 @@ const forgotPassword = async (req, res, next) => {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    const newPassword = generateRandomPassword();
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
-    // If database is offline, simulate password reset
+    // If database is offline, simulate reset link dispatch
     if (!isDbReady()) {
-      logger.info(`Database offline. Simulating password reset for ${normalizedEmail}.`);
-      if (DEMO_USERS[normalizedEmail]) {
-        DEMO_USERS[normalizedEmail].password = newPassword;
-      }
-      const demoUser = DEMO_USERS[normalizedEmail] || { 
-        fullName: normalizedEmail.split('@')[0].replace(/[._-]/g, ' '), 
-        email: normalizedEmail 
+      logger.info(`Database offline. Generating memory reset token for ${normalizedEmail}.`);
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+      
+      MEMORY_RESET_TOKENS.set(hashedToken, {
+        email: normalizedEmail,
+        expires: Date.now() + 30 * 60 * 1000,
+      });
+
+      const demoUser = DEMO_USERS[normalizedEmail] || {
+        fullName: normalizedEmail.split('@')[0].replace(/[._-]/g, ' '),
+        email: normalizedEmail,
       };
 
-      await sendNewPasswordEmail({
+      const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`;
+
+      await sendResetPasswordEmail({
         to: normalizedEmail,
         name: demoUser.fullName,
-        newPassword,
+        resetUrl,
       });
 
       return res.status(200).json({
         success: true,
-        message: 'A new password has been enabled and sent to your email address.',
+        message: 'A secure password reset link has been dispatched to your email address.',
         data: {
           email: normalizedEmail,
-          newPasswordPreview: newPassword,
         },
       });
     }
@@ -760,14 +769,14 @@ const forgotPassword = async (req, res, next) => {
     const escapedEmail = normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     let user = await User.findOne({ email: { $regex: new RegExp(`^${escapedEmail}$`, 'i') } });
 
-    // If not found in DB but exists in DEMO_USERS, auto-provision with new password
+    // If not found in DB but exists in DEMO_USERS, auto-provision
     if (!user && DEMO_USERS[normalizedEmail]) {
       const demoData = DEMO_USERS[normalizedEmail];
       try {
         user = await User.create({
           fullName: demoData.fullName,
           email: normalizedEmail,
-          password: newPassword,
+          password: demoData.password || 'Citizen@123',
           role: demoData.role || 'citizen',
           phone: demoData.phone || '+91 98610 12345',
           district: demoData.district || 'Cuttack',
@@ -777,11 +786,11 @@ const forgotPassword = async (req, res, next) => {
           isActive: true,
         });
       } catch (e) {
-        DEMO_USERS[normalizedEmail].password = newPassword;
+        // Continue with memory fallback if DB write fails
       }
     }
 
-    // If still not found and portal is citizen (or unspecified), auto-provision citizen profile with the new password
+    // If still not found and portal is citizen (or unspecified), auto-provision citizen profile
     if (!user && (!portal || portal === 'citizen')) {
       const namePart = normalizedEmail.split('@')[0].replace(/[._-]/g, ' ');
       const formattedName = namePart
@@ -794,7 +803,7 @@ const forgotPassword = async (req, res, next) => {
         user = await User.create({
           fullName: formattedName,
           email: normalizedEmail,
-          password: newPassword, // UserSchema pre-save hook will hash it
+          password: 'Temporary@123', // Will be reset via link
           role: 'citizen',
           phone: '+91 98610 12345',
           district: 'Cuttack',
@@ -803,7 +812,7 @@ const forgotPassword = async (req, res, next) => {
           isVerified: true,
           isActive: true,
         });
-        logger.info(`Auto-provisioned citizen account for ${normalizedEmail} with newly enabled password.`);
+        logger.info(`Auto-provisioned citizen account for ${normalizedEmail}.`);
       } catch (provisionErr) {
         logger.warn(`Could not auto-provision citizen in DB: ${provisionErr.message}`);
       }
@@ -830,54 +839,126 @@ const forgotPassword = async (req, res, next) => {
       });
     }
 
-    // Set new password (UserSchema pre-save hook will hash it)
-    user.password = newPassword;
-    await user.save();
+    // Generate password reset token
+    const resetToken = typeof user.getResetPasswordToken === 'function'
+      ? user.getResetPasswordToken()
+      : crypto.randomBytes(32).toString('hex');
 
-    // Keep DEMO_USERS in sync if it is a demo account
-    if (DEMO_USERS[normalizedEmail]) {
-      DEMO_USERS[normalizedEmail].password = newPassword;
+    if (typeof user.save === 'function') {
+      await user.save({ validateBeforeSave: false });
     }
 
-    // Dispatch email with new password
-    await sendNewPasswordEmail({
+    // Construct secure reset link
+    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(user.email || normalizedEmail)}`;
+
+    // Dispatch professional HTML email
+    await sendResetPasswordEmail({
       to: user.email || normalizedEmail,
       name: user.fullName || 'Citizen',
-      newPassword,
+      resetUrl,
     });
 
-    logger.info(`Password reset successfully for ${user.email}. New password generated and dispatched.`);
+    logger.info(`Password reset link dispatched via email to ${user.email || normalizedEmail}`);
 
     return res.status(200).json({
       success: true,
-      message: 'A new password has been enabled and sent to your email address.',
+      message: 'A secure password reset link has been dispatched to your email address.',
       data: {
         email: user.email || normalizedEmail,
-        newPasswordPreview: newPassword,
       },
     });
   } catch (error) {
-    if (
-      error.name === 'MongooseServerSelectionError' ||
-      error.name === 'MongooseError' ||
-      error.name === 'MongoServerSelectionError' ||
-      error.message?.includes('buffering timed out') ||
-      error.message?.includes('timed out after')
-    ) {
-      const normalizedEmail = (req.body.email || '').toLowerCase().trim();
-      const newPassword = generateRandomPassword();
-      if (DEMO_USERS[normalizedEmail]) {
-        DEMO_USERS[normalizedEmail].password = newPassword;
-      }
-      return res.status(200).json({
-        success: true,
-        message: 'A new password has been enabled and sent to your email address.',
-        data: {
-          email: normalizedEmail,
-          newPasswordPreview: newPassword,
+    logger.error(`Forgot password error: ${error.message}`);
+    next(error);
+  }
+};
+
+/**
+ * @desc    Reset Password with Secure Token
+ * @route   POST /api/v1/auth/reset-password
+ * @route   POST /api/v1/auth/reset-password/:token
+ * @access  Public
+ */
+const resetPassword = async (req, res, next) => {
+  try {
+    const rawToken = req.params.token || req.body.token;
+    const { password } = req.body;
+
+    if (!rawToken) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'TOKEN_REQUIRED',
+          message: 'Reset token is required.',
         },
       });
     }
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_PASSWORD',
+          message: 'Password must be at least 6 characters long.',
+        },
+      });
+    }
+
+    // Hash the raw token to match database record
+    const hashedToken = crypto.createHash('sha256').update(rawToken.trim()).digest('hex');
+
+    // Check memory store if database is offline
+    if (!isDbReady() || MEMORY_RESET_TOKENS.has(hashedToken)) {
+      const memoryEntry = MEMORY_RESET_TOKENS.get(hashedToken);
+      if (memoryEntry && memoryEntry.expires > Date.now()) {
+        const userEmail = memoryEntry.email;
+        if (DEMO_USERS[userEmail]) {
+          DEMO_USERS[userEmail].password = password;
+        }
+        MEMORY_RESET_TOKENS.delete(hashedToken);
+
+        return res.status(200).json({
+          success: true,
+          message: 'Your password has been successfully reset. You can now log in.',
+        });
+      }
+    }
+
+    // Look up user with matching unexpired token
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_OR_EXPIRED_TOKEN',
+          message: 'This password reset link is invalid or has expired. Please request a new one.',
+        },
+      });
+    }
+
+    // Update password (UserSchema pre-save hook will hash it)
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    // Keep demo accounts in sync if applicable
+    if (user.email && DEMO_USERS[user.email.toLowerCase()]) {
+      DEMO_USERS[user.email.toLowerCase()].password = password;
+    }
+
+    logger.info(`Password successfully reset for user: ${user.email}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Your password has been successfully reset! You can now log in with your new password.',
+    });
+  } catch (error) {
+    logger.error(`Reset password error: ${error.message}`);
     next(error);
   }
 };
@@ -890,4 +971,5 @@ module.exports = {
   updateProfile,
   logout,
   forgotPassword,
+  resetPassword,
 };

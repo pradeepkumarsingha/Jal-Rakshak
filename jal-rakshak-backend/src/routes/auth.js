@@ -8,6 +8,7 @@ const {
   updateProfile,
   logout,
   forgotPassword,
+  resetPassword,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
@@ -53,6 +54,27 @@ router.post(
     validate,
   ],
   forgotPassword
+);
+
+router.post(
+  '/reset-password',
+  authLimiter,
+  [
+    body('token').notEmpty().withMessage('Reset token is required'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    validate,
+  ],
+  resetPassword
+);
+
+router.post(
+  '/reset-password/:token',
+  authLimiter,
+  [
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    validate,
+  ],
+  resetPassword
 );
 
 router.post('/refresh', refreshToken);

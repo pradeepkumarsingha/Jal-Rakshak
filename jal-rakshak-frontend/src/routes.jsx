@@ -11,6 +11,7 @@ import { LOADING_MESSAGES } from './utils/loadingMessages'
 const Landing = lazy(() => import('./pages/public/Landing'))
 const Login = lazy(() => import('./pages/public/Login'))
 const Register = lazy(() => import('./pages/public/Register'))
+const ResetPassword = lazy(() => import('./pages/public/ResetPassword'))
 
 // Citizen Pages
 const CitizenDashboard = lazy(() => import('./pages/citizen/CitizenDashboard'))
@@ -48,6 +49,8 @@ export default function AppRoutes() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
         </Route>
 
         {/* Citizen Portal Routes */}
