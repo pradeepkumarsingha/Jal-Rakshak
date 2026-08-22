@@ -1,31 +1,44 @@
 const mongoose = require('mongoose');
 
-const AuditLogSchema = new mongoose.Schema(
+const auditLogSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       index: true,
     },
+
+    actorRole: {
+      type: String,
+      default: 'citizen',
+    },
+
     action: {
       type: String,
       required: true,
       index: true,
     },
+
     entityType: {
       type: String,
       required: true,
       index: true,
     },
+
     entityId: {
       type: mongoose.Schema.Types.ObjectId,
+      index: true,
     },
+
     details: {
       type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
+
     ipAddress: {
       type: String,
     },
+
     userAgent: {
       type: String,
     },
@@ -35,4 +48,7 @@ const AuditLogSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model('AuditLog', AuditLogSchema);
+auditLogSchema.index({ action: 1, createdAt: -1 });
+auditLogSchema.index({ entityType: 1, entityId: 1 });
+
+module.exports = mongoose.model('AuditLog', auditLogSchema);

@@ -1,13 +1,22 @@
 const mongoose = require('mongoose');
-const {
-  EMERGENCY_TYPES,
-  EMERGENCY_STATUS,
-  SEVERITY_LEVELS,
-  WATER_SEVERITY,
-  ROAD_ACCESS,
-} = require('../utils/constants');
 
-const EmergencyRequestSchema = new mongoose.Schema(
+const emergencyStatusHistorySchema = new mongoose.Schema(
+  {
+    status: String,
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    changedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    note: String,
+  },
+  { _id: false }
+);
+
+const emergencyRequestSchema = new mongoose.Schema(
   {
     requestId: {
       type: String,
@@ -15,20 +24,18 @@ const EmergencyRequestSchema = new mongoose.Schema(
       sparse: true,
       index: true,
     },
+
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       index: true,
     },
+
     requestType: {
       type: String,
-      enum: Object.values(EMERGENCY_TYPES),
-      default: EMERGENCY_TYPES.RESCUE_REQUIRED,
+      default: 'RESCUE_REQUIRED',
     },
-    category: {
-      type: String,
-      trim: true,
-    },
+
     location: {
       type: {
         type: String,
@@ -37,138 +44,129 @@ const EmergencyRequestSchema = new mongoose.Schema(
       },
       coordinates: {
         type: [Number], // [longitude, latitude]
-        required: [true, 'Please provide emergency coordinates'],
+        required: [true, 'Distress coordinates are required'],
       },
     },
+
     address: {
       type: String,
-      required: [true, 'Please provide landmark / address'],
       trim: true,
     },
+
     totalPeople: {
       type: Number,
-      required: [true, 'Please provide total number of people'],
-      min: [1, 'Must specify at least 1 person'],
+      default: 1,
+      min: 1,
     },
+
     childrenCount: {
       type: Number,
       default: 0,
       min: 0,
     },
+
     elderlyCount: {
       type: Number,
       default: 0,
       min: 0,
     },
+
     disabilityCount: {
       type: Number,
       default: 0,
       min: 0,
     },
-    infantsCount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-    pregnantCount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-    victims: {
-      infants: { type: Number, default: 0 },
-      children: { type: Number, default: 0 },
-      adults: { type: Number, default: 1 },
-      elderly: { type: Number, default: 0 },
-      pregnant: { type: Number, default: 0 },
-    },
+
     medicalEmergency: {
       type: Boolean,
       default: false,
     },
+
     waterSeverity: {
       type: String,
-      enum: Object.values(WATER_SEVERITY),
-      default: WATER_SEVERITY.MEDIUM,
+      default: 'HIGH',
     },
-    waterDepth: {
-      type: String,
-      default: '1.0 meters',
-    },
+
     roadAccess: {
       type: String,
-      enum: Object.values(ROAD_ACCESS),
-      default: ROAD_ACCESS.UNKNOWN,
+      default: 'BLOCKED',
     },
+
     description: {
       type: String,
       trim: true,
     },
-    imageUrl: {
-      type: String,
-      trim: true,
+
+    image: {
+      secureUrl: String,
+      publicId: String,
     },
+
     priorityScore: {
       type: Number,
+      default: 75,
       min: 0,
       max: 100,
-      default: 50,
       index: true,
     },
+
     priorityLevel: {
       type: String,
-      enum: Object.values(SEVERITY_LEVELS),
-      default: SEVERITY_LEVELS.HIGH,
+      default: 'HIGH',
       index: true,
     },
+
     status: {
       type: String,
-      enum: Object.values(EMERGENCY_STATUS),
-      default: EMERGENCY_STATUS.PENDING,
+      enum: [
+        'PENDING',
+        'ASSIGNED',
+        'DISPATCHED',
+        'EN_ROUTE',
+        'ON_SCENE',
+        'RESCUED',
+        'CLOSED',
+        'CANCELLED',
+      ],
+      default: 'PENDING',
       index: true,
     },
+
     assignedTeam: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'RescueTeam',
+      default: null,
       index: true,
     },
-    assignedTeamName: {
-      type: String,
-      trim: true,
-    },
-    etaMinutes: {
-      type: Number,
+
+    activeAssignment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'RescueAssignment',
       default: null,
+      index: true,
     },
-    assignedAt: {
-      type: Date,
-    },
-    rescuedAt: {
-      type: Date,
-    },
-    closedAt: {
-      type: Date,
-    },
+
     contact: {
       name: { type: String, trim: true },
       phone: { type: String, trim: true },
       altPhone: { type: String, trim: true },
     },
+
+    statusHistory: [emergencyStatusHistorySchema],
   },
   {
     timestamps: true,
   }
 );
 
-// Pre-save hook to generate sequential/human-readable requestId if not provided
-EmergencyRequestSchema.pre('save', function (next) {
+emergencyRequestSchema.pre('save', function (next) {
   if (!this.requestId) {
     this.requestId = `SOS-${Math.floor(1000 + Math.random() * 9000)}`;
   }
   next();
 });
 
-EmergencyRequestSchema.index({ location: '2dsphere' });
-EmergencyRequestSchema.index({ status: 1, priorityScore: -1 });
+emergencyRequestSchema.index({ location: '2dsphere' });
+emergencyRequestSchema.index({ status: 1, priorityScore: -1, createdAt: 1 });
 
-module.exports = mongoose.model('EmergencyRequest', EmergencyRequestSchema);
+module.exports = mongoose.model('EmergencyRequest', emergencyRequestSchema);

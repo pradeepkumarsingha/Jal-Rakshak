@@ -116,13 +116,29 @@ const SHELTER_FACILITIES = [
   'Wi-Fi Emergency Mesh',
 ];
 
-// Major Indian River Telemetry Stations
+// Major Indian River & Dam Telemetry Stations
 const RIVERS_TELEMETRY = [
+  {
+    id: 'hirakud-dam',
+    name: 'Hirakud Dam (Sambalpur, Mahanadi)',
+    state: 'Odisha',
+    currentLevel: 629.80, // Feet (FRL: 630.00 ft)
+    warningLevel: 628.00,
+    dangerLevel: 630.00,
+    status: 'CRITICAL',
+    trend: 'RISING',
+    inflow: '11.45 Lakh Cusecs',
+    outflow: '11.20 Lakh Cusecs',
+    gatesOpen: '28 / 64 Sluice Gates',
+    capacityPct: 99.6,
+    downstreamTransitTime: '~24h to Mundali / Naraj',
+    coordinates: [83.8710, 21.5273],
+  },
   {
     id: 'mahanadi-naraj',
     name: 'Mahanadi (Naraj Barrage, Cuttack)',
     state: 'Odisha',
-    currentLevel: 26.85,
+    currentLevel: 26.85, // Meters (Danger mark: 26.41m)
     warningLevel: 25.41,
     dangerLevel: 26.41,
     status: 'CRITICAL',

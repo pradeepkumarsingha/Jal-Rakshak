@@ -1,4 +1,5 @@
 require('dotenv').config();
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -11,8 +12,10 @@ const logger = require('./utils/logger');
 const routes = require('./routes');
 const { errorHandler } = require('./middleware/errorHandler');
 const { apiLimiter } = require('./middleware/rateLimiter');
+const { initializeSocket } = require('./socket');
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // Initialize Database & Redis
@@ -20,6 +23,10 @@ if (process.env.NODE_ENV !== 'test') {
   connectDB();
   initRedis();
 }
+
+// Initialize Socket.IO Real-Time Engine
+const io = initializeSocket(server);
+app.set('io', io);
 
 // Security HTTP Headers
 app.use(
@@ -90,7 +97,10 @@ app.get('/', (req, res) => {
 app.use((req, res, next) => {
   res.status(404).json({
     success: false,
-    error: `Cannot ${req.method} ${req.originalUrl} - Endpoint not found`,
+    error: {
+      code: 'NOT_FOUND',
+      message: `Cannot ${req.method} ${req.originalUrl} - Endpoint not found`,
+    },
   });
 });
 
@@ -98,9 +108,8 @@ app.use((req, res, next) => {
 app.use(errorHandler);
 
 // Start Server (only if not running under Jest test runner)
-let server = null;
 if (process.env.NODE_ENV !== 'test') {
-  server = app.listen(PORT, () => {
+  server.listen(PORT, () => {
     logger.info(`🌊 Jal Rakshak API Server is active on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
     logger.info(`📡 Health Check URL: http://localhost:${PORT}/api/v1/health`);
   });
@@ -118,12 +127,10 @@ if (process.env.NODE_ENV !== 'test') {
   // Graceful Shutdown
   const gracefulShutdown = () => {
     logger.info('Received shutdown signal. Closing HTTP server gracefully...');
-    if (server) {
-      server.close(() => {
-        logger.info('HTTP server closed.');
-        process.exit(0);
-      });
-    }
+    server.close(() => {
+      logger.info('HTTP server closed.');
+      process.exit(0);
+    });
   };
 
   process.on('SIGTERM', gracefulShutdown);

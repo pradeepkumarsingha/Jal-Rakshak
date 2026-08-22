@@ -18,22 +18,15 @@ import {
   Copy,
   Check,
   Sparkles,
+  LogOut,
 } from 'lucide-react'
 import JalRakshakLogo from '../../components/common/JalRakshakLogo'
 
 export default function Login() {
-  const { user, isAuthenticated, getUserHomePath, login, forgotPassword } = useAuth()
+  const { user, isAuthenticated, getUserHomePath, login, logout, forgotPassword } = useAuth()
   const { showToast } = useAlert()
   const navigate = useNavigate()
   const location = useLocation()
-
-  // Auto-redirect if user is already logged in
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      const destination = getUserHomePath ? getUserHomePath(user) : (user.role === 'admin' ? '/admin' : user.role === 'rescue' ? '/rescue' : '/dashboard')
-      navigate(destination, { replace: true })
-    }
-  }, [isAuthenticated, user, navigate, getUserHomePath])
 
   // Read portal from URL query parameter
   const searchParams = new URLSearchParams(location.search)
@@ -41,6 +34,21 @@ export default function Login() {
   const [activePortal, setActivePortal] = useState(
     ['citizen', 'admin', 'rescue'].includes(portalParam) ? portalParam : 'citizen'
   )
+
+  // Auto-redirect ONLY if the requested portal matches user's current role
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const requestedPortal = searchParams.get('portal')
+      // If user is already in the matching role, send them directly to their portal
+      if (!requestedPortal && user.role) {
+        const dest = user.role === 'admin' ? '/admin' : user.role === 'rescue' ? '/rescue' : '/dashboard'
+        navigate(dest, { replace: true })
+      } else if (requestedPortal && requestedPortal === user.role) {
+        const dest = user.role === 'admin' ? '/admin' : user.role === 'rescue' ? '/rescue' : '/dashboard'
+        navigate(dest, { replace: true })
+      }
+    }
+  }, [isAuthenticated, user, navigate, location.search])
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -153,6 +161,8 @@ export default function Login() {
     }
   }
 
+  const isCrossPortal = isAuthenticated && user && user.role !== activePortal
+
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 bg-slate-50 relative">
       <div className="max-w-md w-full bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl relative z-10">
@@ -161,7 +171,7 @@ export default function Login() {
           <button
             type="button"
             onClick={() => handlePortalSwitch('citizen')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
               activePortal === 'citizen'
                 ? 'bg-white text-brand-700 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -174,7 +184,7 @@ export default function Login() {
           <button
             type="button"
             onClick={() => handlePortalSwitch('admin')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
               activePortal === 'admin'
                 ? 'bg-white text-purple-700 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -187,7 +197,7 @@ export default function Login() {
           <button
             type="button"
             onClick={() => handlePortalSwitch('rescue')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
               activePortal === 'rescue'
                 ? 'bg-white text-emerald-700 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -197,6 +207,45 @@ export default function Login() {
             <span>Rescue Unit</span>
           </button>
         </div>
+
+        {/* Cross Portal Active Account Banner */}
+        {isCrossPortal && (
+          <div className="mb-4 p-3 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 text-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-bold flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Currently Signed In</span>
+              </span>
+              <span className="font-mono text-[10px] uppercase bg-amber-200/80 px-2 py-0.5 rounded font-bold">
+                {user.role} Account
+              </span>
+            </div>
+            <p className="text-[11px] text-amber-800">
+              You are logged in as <strong className="text-slate-900">{user.email}</strong>. To access the <strong className="uppercase">{activePortal}</strong> portal, please sign in with your authorized credentials below.
+            </p>
+            <div className="pt-1 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  logout()
+                  setEmail('')
+                  setPassword('')
+                }}
+                className="text-[11px] font-bold text-red-600 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <LogOut className="w-3 h-3" />
+                <span>Sign Out Current User</span>
+              </button>
+              <span className="text-slate-300">•</span>
+              <Link
+                to={user.role === 'admin' ? '/admin' : user.role === 'rescue' ? '/rescue' : '/dashboard'}
+                className="text-[11px] font-bold text-brand-700 hover:underline"
+              >
+                Return to {user.role.toUpperCase()} Home &rarr;
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Portal-Specific Header */}
         <div className="text-center mb-6">
@@ -478,4 +527,3 @@ export default function Login() {
     </div>
   )
 }
-

@@ -123,22 +123,7 @@ const getAnalytics = async (req, res, next) => {
   }
 };
 
-/**
- * @desc    Get Pending Reports Queue
- * @route   GET /api/v1/admin/reports/pending
- * @access  Private (Admin)
- */
-const getPendingReports = async (req, res, next) => {
-  try {
-    const reports = await CitizenReport.find({
-      verificationStatus: { $in: ['PENDING', 'PENDING_REVIEW'] },
-    }).sort({ createdAt: -1 });
-
-    return successResponse(res, reports, 'Pending review queue retrieved');
-  } catch (error) {
-    next(error);
-  }
-};
+const { getPendingReports } = require('./reportController');
 
 /**
  * @desc    Get Audit Logs

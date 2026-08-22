@@ -1,7 +1,90 @@
 const mongoose = require('mongoose');
-const { REPORT_STATUS, WATER_SEVERITY, ROAD_ACCESS } = require('../utils/constants');
 
-const CitizenReportSchema = new mongoose.Schema(
+const imageSchema = new mongoose.Schema(
+  {
+    secureUrl: String,
+    publicId: String,
+    width: Number,
+    height: Number,
+    format: String,
+    bytes: Number,
+    uploadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
+
+const aiAnalysisSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ['PENDING', 'COMPLETED', 'UNAVAILABLE', 'FAILED'],
+      default: 'PENDING',
+    },
+    floodDetected: {
+      type: Boolean,
+      default: null,
+    },
+    confidence: {
+      type: Number,
+      default: null,
+    },
+    severity: {
+      type: String,
+      enum: ['LOW', 'MEDIUM', 'HIGH', 'SEVERE', 'UNKNOWN'],
+      default: 'UNKNOWN',
+    },
+    estimatedWaterDepthMeters: {
+      type: Number,
+      default: null,
+    },
+    waterCoveragePercent: {
+      type: Number,
+      default: null,
+    },
+    roadCondition: {
+      type: String,
+      enum: ['OPEN', 'PARTIALLY_BLOCKED', 'BLOCKED', 'UNKNOWN'],
+      default: 'UNKNOWN',
+    },
+    vehicleTravelRecommendation: {
+      type: String,
+      enum: ['RECOMMENDED', 'CAUTION', 'NOT_RECOMMENDED', 'UNKNOWN'],
+      default: 'UNKNOWN',
+    },
+    hazardObjects: {
+      type: [String],
+      default: [],
+    },
+    modelName: {
+      type: String,
+      default: 'ai-report-hazard',
+    },
+    modelVersion: {
+      type: String,
+      default: null,
+    },
+    source: {
+      type: String,
+      default: 'deployed_hazard_verification_model',
+    },
+    isEstimate: {
+      type: Boolean,
+      default: true,
+    },
+    requiresHumanVerification: {
+      type: Boolean,
+      default: true,
+    },
+    analyzedAt: Date,
+    rawResponse: mongoose.Schema.Types.Mixed,
+  },
+  { _id: false }
+);
+
+const citizenReportSchema = new mongoose.Schema(
   {
     reportId: {
       type: String,
@@ -9,15 +92,13 @@ const CitizenReportSchema = new mongoose.Schema(
       sparse: true,
       index: true,
     },
+
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       index: true,
     },
-    userName: {
-      type: String,
-      trim: true,
-    },
+
     location: {
       type: {
         type: String,
@@ -26,87 +107,75 @@ const CitizenReportSchema = new mongoose.Schema(
       },
       coordinates: {
         type: [Number], // [longitude, latitude]
-        required: [true, 'Please provide report coordinates'],
+        required: [true, 'Coordinates are required in [longitude, latitude] format'],
       },
     },
+
     address: {
       type: String,
-      required: [true, 'Please provide location address / landmark'],
       trim: true,
     },
-    category: {
-      type: String,
-      trim: true,
-      default: 'General Waterlogging',
-    },
+
     waterLevel: {
       type: String,
-      enum: Object.values(WATER_SEVERITY),
-      default: WATER_SEVERITY.MEDIUM,
+      enum: ['LOW', 'MEDIUM', 'HIGH', 'SEVERE'],
+      required: true,
+      uppercase: true,
     },
-    waterDepth: {
-      type: String,
-      default: '0.5 meters',
-    },
+
     roadStatus: {
       type: String,
-      enum: Object.values(ROAD_ACCESS),
-      default: ROAD_ACCESS.PARTIALLY_BLOCKED,
+      enum: ['OPEN', 'PARTIALLY_BLOCKED', 'BLOCKED', 'UNKNOWN'],
+      required: true,
+      uppercase: true,
     },
+
     description: {
       type: String,
-      required: [true, 'Please provide a description of the ground situation'],
       trim: true,
     },
-    imageUrl: {
-      type: String,
-      trim: true,
-    },
-    trappedPeople: {
-      type: Number,
-      default: 0,
-    },
-    needsBoat: {
-      type: Boolean,
-      default: false,
-    },
+
+    image: imageSchema,
+
     aiAnalysis: {
-      floodDetected: { type: Boolean, default: true },
-      confidence: { type: Number, default: 92 },
-      estimatedWaterDepth: { type: Number, default: 0.8 },
-      depthCategory: { type: String, default: 'Knee-to-Waist Level' },
-      roadCondition: { type: String, default: 'Submerged' },
-      hazardObjectsDetected: [{ type: String }],
-      recommendedPriority: { type: String, default: 'MEDIUM' },
-      suggestedEvacuation: { type: Boolean, default: false },
+      type: aiAnalysisSchema,
+      default: () => ({ status: 'PENDING' }),
     },
+
     verificationStatus: {
       type: String,
-      enum: Object.values(REPORT_STATUS),
-      default: REPORT_STATUS.PENDING_REVIEW,
+      enum: ['PENDING', 'VERIFIED', 'REJECTED', 'ESCALATED'],
+      default: 'PENDING',
       index: true,
     },
-    verifiedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+
+    verification: {
+      verifiedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      verifiedAt: Date,
+      action: String,
+      notes: String,
     },
-    verifiedAt: {
-      type: Date,
-    },
+
+    escalationReason: String,
   },
   {
     timestamps: true,
   }
 );
 
-CitizenReportSchema.pre('save', function (next) {
+citizenReportSchema.pre('save', function (next) {
   if (!this.reportId) {
-    this.reportId = `REP-${Math.floor(100 + Math.random() * 900)}`;
+    this.reportId = `REP-${Math.floor(1000 + Math.random() * 9000)}`;
   }
   next();
 });
 
-CitizenReportSchema.index({ location: '2dsphere' });
-CitizenReportSchema.index({ verificationStatus: 1, createdAt: -1 });
+// Required indexes
+citizenReportSchema.index({ location: '2dsphere' });
+citizenReportSchema.index({ verificationStatus: 1, createdAt: -1 });
+citizenReportSchema.index({ 'aiAnalysis.severity': 1, createdAt: -1 });
 
-module.exports = mongoose.model('CitizenReport', CitizenReportSchema);
+module.exports = mongoose.model('CitizenReport', citizenReportSchema);
