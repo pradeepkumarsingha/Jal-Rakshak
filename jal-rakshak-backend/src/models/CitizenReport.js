@@ -58,6 +58,10 @@ const aiAnalysisSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    message: {
+      type: String,
+      default: null,
+    },
     modelName: {
       type: String,
       default: 'ai-report-hazard',

@@ -146,7 +146,7 @@ export default function ReportForm({ onSuccess }) {
           )}
 
           {submittedReport.aiAnalysis && (
-            <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 text-white space-y-2">
+            <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 text-white space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-extrabold text-cyan-400 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-cyan-400" />
@@ -157,21 +157,32 @@ export default function ReportForm({ onSuccess }) {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                <div className="p-2.5 bg-slate-800/70 rounded-xl">
-                  <span className="text-[10px] text-slate-400 block">AI Severity</span>
-                  <strong className="text-amber-400 font-bold text-xs">{submittedReport.aiAnalysis.severity || 'UNKNOWN'}</strong>
+              {submittedReport.aiAnalysis.floodDetected === false ? (
+                <div className="p-3 bg-red-950/40 rounded-xl border border-red-500/20 text-xs space-y-1">
+                  <span className="text-[10px] font-extrabold text-red-400 block uppercase tracking-wider">AI Image Verification Failed</span>
+                  <p className="text-red-200 leading-relaxed font-medium">
+                    {submittedReport.aiAnalysis.message || 'The submitted image could not be verified as a genuine flood situation.'}
+                  </p>
                 </div>
-                <div className="p-2.5 bg-slate-800/70 rounded-xl">
-                  <span className="text-[10px] text-slate-400 block">Road Condition</span>
-                  <strong className="text-rose-400 font-bold text-xs">{submittedReport.aiAnalysis.roadCondition || 'UNKNOWN'}</strong>
-                </div>
-              </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                    <div className="p-2.5 bg-slate-800/70 rounded-xl">
+                      <span className="text-[10px] text-slate-400 block">AI Severity</span>
+                      <strong className="text-amber-400 font-bold text-xs">{submittedReport.aiAnalysis.severity || 'UNKNOWN'}</strong>
+                    </div>
+                    <div className="p-2.5 bg-slate-800/70 rounded-xl">
+                      <span className="text-[10px] text-slate-400 block">Road Condition</span>
+                      <strong className="text-rose-400 font-bold text-xs">{submittedReport.aiAnalysis.roadCondition || 'UNKNOWN'}</strong>
+                    </div>
+                  </div>
 
-              <p className="text-[11px] text-amber-300/90 italic flex items-center gap-1 pt-1">
-                <Info className="w-3.5 h-3.5 shrink-0 text-amber-400" />
-                <span>AI image analysis is an estimate and requires administrator verification.</span>
-              </p>
+                  <p className="text-[11px] text-amber-300/90 italic flex items-center gap-1 pt-1">
+                    <Info className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                    <span>AI image analysis is an estimate and requires administrator verification.</span>
+                  </p>
+                </>
+              )}
             </div>
           )}
 

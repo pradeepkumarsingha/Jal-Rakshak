@@ -156,6 +156,7 @@ const createReport = async (req, res, next) => {
           buffer: req.file.buffer,
           filename: req.file.originalname,
           mimetype: req.file.mimetype,
+          reportedWaterLevel: normalizedWaterLevel,
         });
 
         const auditAction =
@@ -238,6 +239,7 @@ const createReport = async (req, res, next) => {
         confidence: normalizedAiAnalysis.confidence,
         severity: normalizedAiAnalysis.severity,
         roadCondition: normalizedAiAnalysis.roadCondition,
+        message: normalizedAiAnalysis.message,
         isEstimate: true,
         requiresHumanVerification: true,
       },
@@ -527,13 +529,14 @@ const deleteReport = async (req, res, next) => {
 const analyzeImage = async (req, res, next) => {
   try {
     const file = req.file;
-    const { imageUrl } = req.body || {};
+    const { imageUrl, waterLevel, severity } = req.body || {};
 
     const analysis = await hazardVerificationService.verifyHazardImage({
       imageUrl,
       buffer: file?.buffer,
       filename: file?.originalname,
       mimetype: file?.mimetype,
+      reportedWaterLevel: waterLevel || severity,
     });
 
     return successResponse(res, analysis, 'Hazard image analysis completed');
