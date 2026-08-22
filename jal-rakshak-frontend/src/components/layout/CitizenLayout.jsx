@@ -10,7 +10,7 @@ export default function CitizenLayout() {
   const location = useLocation()
 
   if (!isAuthenticated) {
-    return <Navigate to="/login?portal=citizen" state={{ from: location }} replace />
+    return <Navigate to="/login" state={{ from: location }} replace />
   }
 
   const isOfficer = user?.role === 'admin' || user?.role === 'rescue'

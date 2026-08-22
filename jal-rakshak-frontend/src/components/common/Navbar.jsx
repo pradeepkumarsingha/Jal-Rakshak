@@ -304,52 +304,16 @@ export default function Navbar() {
 
                 {userMenuOpen && (
                   <div
-                    className={`absolute right-0 mt-2 w-52 rounded-2xl shadow-xl border py-2 z-50 animate-in fade-in zoom-in duration-150 ${
+                    className={`absolute right-0 mt-2 w-48 rounded-2xl shadow-xl border py-1.5 z-50 animate-in fade-in zoom-in duration-150 ${
                       isDarkPortal
                         ? 'bg-slate-900 border-slate-700 text-slate-200'
                         : 'bg-white border-slate-200 text-slate-800'
                     }`}
                   >
-                    <div className={`px-3 py-2 border-b ${isDarkPortal ? 'border-slate-800' : 'border-slate-100'}`}>
-                      <div className="font-bold text-xs truncate">{user.fullName || user.name}</div>
-                      <div className="text-[10px] text-slate-400 capitalize font-medium">{user.role} Portal</div>
+                    <div className={`px-3.5 py-2.5 border-b ${isDarkPortal ? 'border-slate-800' : 'border-slate-100'}`}>
+                      <div className="font-bold text-xs text-slate-900 dark:text-white truncate">{user.fullName || user.name}</div>
+                      <div className="text-[10px] text-slate-400 capitalize font-medium">{user.role || 'Citizen'}</div>
                     </div>
-
-                    <Link
-                      to="/admin"
-                      onClick={() => setUserMenuOpen(false)}
-                      className={`block px-3 py-2 text-xs font-semibold ${
-                        isDarkPortal
-                          ? 'hover:bg-purple-500/10 text-purple-400'
-                          : 'text-slate-700 hover:bg-purple-50 hover:text-purple-700'
-                      }`}
-                    >
-                      Admin Command Center
-                    </Link>
-
-                    <Link
-                      to="/rescue"
-                      onClick={() => setUserMenuOpen(false)}
-                      className={`block px-3 py-2 text-xs font-semibold ${
-                        isDarkPortal
-                          ? 'hover:bg-emerald-500/10 text-emerald-400'
-                          : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-700'
-                      }`}
-                    >
-                      Rescue Field Operations
-                    </Link>
-
-                    <Link
-                      to="/dashboard"
-                      onClick={() => setUserMenuOpen(false)}
-                      className={`block px-3 py-2 text-xs font-semibold ${
-                        isDarkPortal
-                          ? 'hover:bg-brand-500/10 text-brand-400'
-                          : 'text-slate-700 hover:bg-brand-50 hover:text-brand-700'
-                      }`}
-                    >
-                      Citizen Public Portal
-                    </Link>
 
                     <button
                       type="button"
@@ -358,12 +322,10 @@ export default function Navbar() {
                         logout()
                         navigate('/')
                       }}
-                      className={`w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-500/10 font-semibold flex items-center gap-1.5 border-t mt-1 cursor-pointer ${
-                        isDarkPortal ? 'border-slate-800' : 'border-slate-100'
-                      }`}
+                      className={`w-full text-left px-3.5 py-2.5 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 font-bold flex items-center gap-2 transition cursor-pointer`}
                     >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Sign Out</span>
+                      <LogOut className="w-4 h-4 text-red-500" />
+                      <span>{t('nav.logout') || 'Sign Out'}</span>
                     </button>
                   </div>
                 )}
@@ -412,42 +374,126 @@ export default function Navbar() {
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
           <div
-            className={`lg:hidden py-3 border-t animate-in slide-in-from-top-4 duration-200 ${
-              isDarkPortal ? 'border-slate-800 bg-slate-900/95' : 'border-slate-200 bg-white/95'
+            className={`lg:hidden py-4 px-2 border-t animate-in slide-in-from-top-4 duration-200 space-y-4 ${
+              isDarkPortal ? 'border-slate-800 bg-slate-900/98' : 'border-slate-200 bg-white/98'
             }`}
           >
-            <div className="grid grid-cols-2 gap-1.5 pb-2">
-              {navLinks.map((item) => {
-                const Icon = item.icon
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold ${
-                      isActive(item.path)
-                        ? isDarkPortal
-                          ? 'bg-brand-600 text-white font-bold'
-                          : 'bg-brand-50 text-brand-700 font-bold'
+            {/* Quick Language Selector for Mobile */}
+            <div className={`p-2.5 rounded-2xl border ${isDarkPortal ? 'bg-slate-800/60 border-slate-700/60' : 'bg-slate-50 border-slate-200/80'}`}>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2 px-1">
+                Choose Language / ଭାଷା / भाषा
+              </span>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { code: 'en', label: 'English' },
+                  { code: 'hi', label: 'हिन्दी' },
+                  { code: 'or', label: 'ଓଡ଼ିଆ' },
+                ].map((l) => (
+                  <button
+                    key={l.code}
+                    type="button"
+                    onClick={() => {
+                      i18n.changeLanguage(l.code)
+                      localStorage.setItem('jalrakshak_lang', l.code)
+                    }}
+                    className={`py-1.5 px-2 rounded-xl text-xs font-bold transition text-center cursor-pointer ${
+                      i18n.language === l.code
+                        ? 'bg-brand-600 text-white shadow-sm'
                         : isDarkPortal
-                        ? 'text-slate-300 hover:bg-slate-800'
-                        : 'text-slate-700 hover:bg-slate-100'
+                        ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    <Icon className="w-4 h-4 text-brand-500" />
-                    <span>{item.name}</span>
-                  </Link>
-                )
-              })}
+                    {l.label}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Navigation Grid */}
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2 px-1">
+                Navigation Modules
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {navLinks.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold ${
+                        isActive(item.path)
+                          ? isDarkPortal
+                            ? 'bg-brand-600 text-white font-bold'
+                            : 'bg-brand-50 text-brand-700 font-bold border border-brand-200'
+                          : isDarkPortal
+                          ? 'text-slate-300 hover:bg-slate-800'
+                          : 'text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 text-brand-500 shrink-0" />
+                      <span className="truncate">{item.name}</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Quick Data Mode Selector */}
+            <div className={`p-2.5 rounded-2xl border ${isDarkPortal ? 'bg-slate-800/60 border-slate-700/60' : 'bg-slate-50 border-slate-200/80'}`}>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2 px-1">
+                Data Feed Telemetry
+              </span>
+              <div className="grid grid-cols-2 gap-1.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    changeDataMode('live')
+                    setMobileMenuOpen(false)
+                  }}
+                  className={`py-1.5 px-2 rounded-xl font-bold transition text-left cursor-pointer ${
+                    dataMode === 'live'
+                      ? 'bg-cyan-600 text-white'
+                      : isDarkPortal
+                      ? 'bg-slate-800 text-slate-300'
+                      : 'bg-white text-slate-700 border border-slate-200'
+                  }`}
+                >
+                  🛰️ Live GPS Mode
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    changeDataMode('simulation-mahanadi')
+                    setMobileMenuOpen(false)
+                  }}
+                  className={`py-1.5 px-2 rounded-xl font-bold transition text-left cursor-pointer ${
+                    dataMode === 'simulation-mahanadi'
+                      ? 'bg-red-600 text-white'
+                      : isDarkPortal
+                      ? 'bg-slate-800 text-slate-300'
+                      : 'bg-white text-slate-700 border border-slate-200'
+                  }`}
+                >
+                  ⚡ Red Alert Sim
+                </button>
+              </div>
+            </div>
+
+            {/* Footer Row */}
             <div
               className={`pt-2 border-t flex items-center justify-between text-xs ${
                 isDarkPortal ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-500'
               }`}
             >
-              <span className="flex items-center gap-1">
-                <PhoneCall className="w-3.5 h-3.5 text-brand-500" /> NDRF: <strong>1078</strong>
-              </span>
+              <a
+                href="tel:1078"
+                className="flex items-center gap-1 font-bold text-red-500 hover:underline"
+              >
+                <PhoneCall className="w-3.5 h-3.5" /> Call NDRF: <strong>1078</strong>
+              </a>
               {user ? (
                 <button
                   type="button"
@@ -456,18 +502,28 @@ export default function Navbar() {
                     setMobileMenuOpen(false)
                     navigate('/')
                   }}
-                  className="text-red-500 font-semibold cursor-pointer"
+                  className="text-red-500 font-bold cursor-pointer"
                 >
                   Sign Out
                 </button>
               ) : (
-                <Link
-                  to="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-brand-500 font-bold"
-                >
-                  Sign In
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-brand-600 font-bold"
+                  >
+                    Sign In
+                  </Link>
+                  <span>•</span>
+                  <Link
+                    to="/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-brand-600 font-bold"
+                  >
+                    Register
+                  </Link>
+                </div>
               )}
             </div>
           </div>

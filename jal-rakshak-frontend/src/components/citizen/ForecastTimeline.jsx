@@ -9,14 +9,16 @@ import {
   Tooltip,
   ReferenceLine,
 } from 'recharts'
+import { useLanguage } from '../../context/LanguageContext'
 import { CloudRain, Waves, AlertTriangle } from 'lucide-react'
 
 export default function ForecastTimeline({ forecast = [] }) {
+  const { t } = useLanguage()
   if (!forecast || forecast.length === 0) {
     return (
       <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100 text-center py-10 text-xs text-slate-500">
         <Waves className="w-8 h-8 mx-auto text-slate-300 mb-2 animate-pulse" />
-        <p className="font-bold text-slate-700">Predictive Hydrograph Timeline</p>
+        <p className="font-bold text-slate-700">{t('citizen.timelineTitle') || 'Predictive Hydrograph Timeline'}</p>
         <p className="text-[11px] text-slate-400 mt-1">
           Hydrological runoff forecast for this coordinate is synchronizing...
         </p>
@@ -44,7 +46,7 @@ export default function ForecastTimeline({ forecast = [] }) {
               <Waves className="w-4 h-4" />
             </span>
             <h3 className="font-extrabold text-base sm:text-lg text-slate-900">
-              24-Hour Hydrograph & Inundation Surge Forecast
+              {t('citizen.timelineTitle') || '24-Hour Hydrograph & Inundation Surge Forecast'}
             </h3>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -54,10 +56,10 @@ export default function ForecastTimeline({ forecast = [] }) {
 
         <div className="flex items-center gap-3 text-xs flex-wrap">
           <span className="flex items-center gap-1 font-semibold text-brand-600">
-            <span className="w-3 h-3 rounded-full bg-brand-500"></span> Water Level (Meters)
+            <span className="w-3 h-3 rounded-full bg-brand-500"></span> {t('common.waterLevel') || 'Water Level'} (m)
           </span>
           <span className="flex items-center gap-1 font-semibold text-cyan-500">
-            <span className="w-3 h-3 rounded bg-cyan-400"></span> Rain (mm/hr)
+            <span className="w-3 h-3 rounded bg-cyan-400"></span> {t('common.rainfall') || 'Rain'} (mm/hr)
           </span>
         </div>
       </div>

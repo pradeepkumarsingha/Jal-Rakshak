@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { emergencyApi } from '../../services/emergencyApi'
 import { useAlert } from '../../context/AlertContext'
 import { useAuth } from '../../context/AuthContext'
+import { useLanguage } from '../../context/LanguageContext'
 import { getSocket, subscribeToCitizenRoom } from '../../services/socket'
 import { SOS_CATEGORIES, WATER_DEPTH_LEVELS } from '../../utils/constants'
+import SosTransmissionLoader from '../../components/citizen/SosTransmissionLoader'
 import {
   Flame,
   CheckCircle2,
@@ -33,6 +35,7 @@ const STATUS_STEPS = [
 ]
 
 export default function EmergencyRequest() {
+  const { t } = useLanguage()
   const { showToast, playAlertChime } = useAlert()
   const { user } = useAuth()
 
@@ -190,15 +193,19 @@ export default function EmergencyRequest() {
         <div className="flex items-center gap-2">
           <Radio className="w-5 h-5 text-white animate-ping" />
           <span className="text-xs font-extrabold uppercase tracking-wide">
-            24x7 Priority Life-Rescue Emergency Gateway
+            {t('sos.ribbonTitle') || '24x7 Priority Life-Rescue Emergency Gateway'}
           </span>
         </div>
         <a href="tel:1078" className="bg-white text-red-700 hover:bg-red-50 text-xs font-extrabold px-3 py-1 rounded-xl shadow">
-          Call 1078 NDRF Direct
+          {t('sos.callNdrfDirect') || 'Call 1078 NDRF Direct'}
         </a>
       </div>
 
-      {submittedSos ? (
+      {submitting ? (
+        <div className="flex justify-center py-8">
+          <SosTransmissionLoader />
+        </div>
+      ) : submittedSos ? (
         /* Real-Time Citizen SOS Tracking Screen */
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-red-200 shadow-2xl space-y-6 text-center">
           <div className="w-16 h-16 mx-auto rounded-full bg-red-100 text-red-600 flex items-center justify-center animate-bounce">
@@ -210,10 +217,10 @@ export default function EmergencyRequest() {
               Distress Beacon Active • Real-Time Tracking
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
-              SOS Broadcast Confirmed!
+              {t('sos.broadcastSuccessTitle') || 'SOS Broadcast Confirmed!'}
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mt-1">
-              Your distress beacon has been registered in the State Disaster Control Room and queued for immediate rescue team assignment.
+              {t('sos.broadcastSuccessSub') || 'Your distress beacon has been registered in the State Disaster Control Room and queued for immediate rescue team assignment.'}
             </p>
           </div>
 
@@ -330,14 +337,14 @@ export default function EmergencyRequest() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold uppercase tracking-wider text-brand-600">
-                Step {step} of 5
+                {t('safeRoute.step') || 'Step'} {step} {t('safeRoute.of') || 'of'} 5
               </span>
               <span className="text-xs font-bold text-slate-500">
-                {step === 1 && 'Emergency Category'}
-                {step === 2 && 'GPS Location'}
-                {step === 3 && 'Victim Headcount'}
-                {step === 4 && 'Water & Environment'}
-                {step === 5 && 'Review & Transmit'}
+                {step === 1 && (t('sos.step1') || 'Emergency Category')}
+                {step === 2 && (t('sos.step2') || 'GPS Location')}
+                {step === 3 && (t('sos.step3') || 'Victim Headcount')}
+                {step === 4 && (t('sos.step4') || 'Water & Environment')}
+                {step === 5 && (t('sos.step5') || 'Review & Transmit')}
               </span>
             </div>
             <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
@@ -352,8 +359,8 @@ export default function EmergencyRequest() {
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-extrabold text-slate-900">What is the primary nature of distress?</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Select the category that best matches your immediate danger.</p>
+                <h3 className="text-lg font-extrabold text-slate-900">{t('sos.categoryQuestion') || 'What is the primary nature of distress?'}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{t('sos.categorySub') || 'Select the category that best matches your immediate danger.'}</p>
               </div>
 
               <div className="space-y-2.5">
@@ -362,7 +369,7 @@ export default function EmergencyRequest() {
                     key={cat.id}
                     type="button"
                     onClick={() => setSosData({ ...sosData, category: cat.label })}
-                    className={`w-full p-4 rounded-2xl border text-left transition flex items-center justify-between ${
+                    className={`w-full p-4 rounded-2xl border text-left transition flex items-center justify-between cursor-pointer ${
                       sosData.category === cat.label
                         ? 'bg-red-50/80 border-red-500 ring-2 ring-red-400 text-red-950 font-bold'
                         : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
@@ -380,12 +387,12 @@ export default function EmergencyRequest() {
           {step === 2 && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-extrabold text-slate-900">Pinpoint your exact location</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Accurate coordinates help rescue boats reach you directly.</p>
+                <h3 className="text-lg font-extrabold text-slate-900">{t('sos.locationQuestion') || 'Pinpoint your exact location'}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{t('sos.locationSub') || 'Accurate coordinates help rescue boats reach you directly.'}</p>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Address / Locality *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('sos.addressLabel') || 'Address / Locality *'}</label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -400,21 +407,21 @@ export default function EmergencyRequest() {
                     type="button"
                     onClick={handleLocateMe}
                     disabled={gpsLoading}
-                    className="px-4 py-2.5 rounded-xl bg-brand-600 text-white text-xs font-bold flex items-center gap-1.5 shrink-0"
+                    className="px-4 py-2.5 rounded-xl bg-brand-600 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer"
                   >
                     <Locate className={`w-3.5 h-3.5 ${gpsLoading ? 'animate-spin' : ''}`} />
-                    <span>Auto GPS Pin</span>
+                    <span>{t('sos.autoGpsPin') || 'Auto GPS Pin'}</span>
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Visual Landmark (Roof color, Nearby tree, Pole number)</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('sos.landmarkLabel') || 'Visual Landmark (Roof color, Nearby tree, Pole number)'}</label>
                 <input
                   type="text"
                   value={sosData.landmark}
                   onChange={(e) => setSosData({ ...sosData, landmark: e.target.value })}
-                  placeholder="e.g. Red overhead water tank on 2nd floor, near Bidanasi temple"
+                  placeholder={t('sos.landmarkPlaceholder') || 'e.g. Red overhead water tank on 2nd floor, near Bidanasi temple'}
                   className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-brand-500 outline-none"
                 />
               </div>
@@ -425,13 +432,13 @@ export default function EmergencyRequest() {
           {step === 3 && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-extrabold text-slate-900">How many individuals need rescue?</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Demographics help dispatch proper boat capacity and medics.</p>
+                <h3 className="text-lg font-extrabold text-slate-900">{t('sos.peopleQuestion') || 'How many individuals need rescue?'}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{t('sos.peopleQuestion') || 'Demographics help dispatch proper boat capacity and medics.'}</p>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-center">
-                  <span className="text-xs text-slate-600 block font-bold">Total People</span>
+                  <span className="text-xs text-slate-600 block font-bold">{t('sos.totalPeople') || 'Total People'}</span>
                   <input
                     type="number"
                     min="1"
@@ -442,7 +449,7 @@ export default function EmergencyRequest() {
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-center">
-                  <span className="text-xs text-slate-600 block font-bold">👶 Children</span>
+                  <span className="text-xs text-slate-600 block font-bold">👶 {t('sos.childrenCount') || 'Children'}</span>
                   <input
                     type="number"
                     min="0"
@@ -453,7 +460,7 @@ export default function EmergencyRequest() {
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-center">
-                  <span className="text-xs text-slate-600 block font-bold">👴 Elderly</span>
+                  <span className="text-xs text-slate-600 block font-bold">👴 {t('sos.elderlyCount') || 'Elderly'}</span>
                   <input
                     type="number"
                     min="0"
@@ -471,7 +478,7 @@ export default function EmergencyRequest() {
                   onChange={(e) => setSosData({ ...sosData, medicalEmergency: e.target.checked })}
                   className="w-4 h-4 rounded text-red-600 focus:ring-red-500"
                 />
-                <span>Critical Medical Emergency (Dialysis, Oxygen, Severe Injury, Insulin, Stretcher Needed)</span>
+                <span>{t('sos.medicalEmergency') || 'Critical Medical Emergency (Dialysis, Oxygen, Severe Injury, Insulin, Stretcher Needed)'}</span>
               </label>
             </div>
           )}
@@ -480,7 +487,7 @@ export default function EmergencyRequest() {
           {step === 4 && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-extrabold text-slate-900">Current Water Depth & Situation</h3>
+                <h3 className="text-lg font-extrabold text-slate-900">{t('sos.depthQuestion') || 'Current Water Depth & Situation'}</h3>
                 <p className="text-xs text-slate-500 mt-0.5">Helps commanders dispatch the right vessel type.</p>
               </div>
 
@@ -490,7 +497,7 @@ export default function EmergencyRequest() {
                     key={w.id}
                     type="button"
                     onClick={() => setSosData({ ...sosData, waterDepth: w.label, waterSeverity: w.id === 'OVERHEAD' ? 'SEVERE' : w.id === 'WAIST' ? 'HIGH' : 'MEDIUM' })}
-                    className={`p-3 rounded-2xl border text-left transition ${
+                    className={`p-3 rounded-2xl border text-left transition cursor-pointer ${
                       sosData.waterDepth === w.label
                         ? 'bg-red-50 border-red-500 ring-2 ring-red-400 text-red-950 font-bold'
                         : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
@@ -503,7 +510,7 @@ export default function EmergencyRequest() {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Additional Operational Notes</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">{t('report.observationDetails') || 'Additional Operational Notes'}</label>
                 <textarea
                   rows={2}
                   value={sosData.description}
@@ -519,25 +526,25 @@ export default function EmergencyRequest() {
           {step === 5 && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-extrabold text-slate-900">Review SOS Distress Packet</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Please confirm callback phone number so rescue teams can contact you.</p>
+                <h3 className="text-lg font-extrabold text-slate-900">{t('sos.confirmTitle') || 'Review SOS Distress Packet'}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{t('sos.confirmSub') || 'Please confirm callback phone number so rescue teams can contact you.'}</p>
               </div>
 
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Category:</span>
+                  <span className="text-slate-500">{t('common.priority') || 'Category'}:</span>
                   <strong className="text-slate-900">{sosData.category}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Target Location:</span>
+                  <span className="text-slate-500">{t('report.locationAddress') || 'Target Location'}:</span>
                   <strong className="text-slate-900">{sosData.location}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Water Depth:</span>
+                  <span className="text-slate-500">{t('report.waterDepth') || 'Water Depth'}:</span>
                   <strong className="text-red-700">{sosData.waterDepth}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Total Individuals:</span>
+                  <span className="text-slate-500">{t('sos.totalPeople') || 'Total Individuals'}:</span>
                   <strong className="text-slate-900 font-bold">{sosData.totalPeople} Persons</strong>
                 </div>
               </div>
@@ -571,10 +578,10 @@ export default function EmergencyRequest() {
               <button
                 type="button"
                 onClick={() => setStep(step - 1)}
-                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition"
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>Back</span>
+                <span>{t('common.cancel') || 'Back'}</span>
               </button>
             ) : (
               <div />
@@ -584,9 +591,9 @@ export default function EmergencyRequest() {
               <button
                 type="button"
                 onClick={() => setStep(step + 1)}
-                className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-brand-600/30 transition"
+                className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-brand-600/30 transition cursor-pointer"
               >
-                <span>Continue</span>
+                <span>{t('common.apply') || 'Continue'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             ) : (
@@ -594,10 +601,10 @@ export default function EmergencyRequest() {
                 type="button"
                 onClick={handleBroadcastSos}
                 disabled={submitting}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white text-xs font-extrabold flex items-center gap-2 shadow-xl shadow-red-600/40 animate-pulse transition disabled:opacity-50"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white text-xs font-extrabold flex items-center gap-2 shadow-xl shadow-red-600/40 animate-pulse transition disabled:opacity-50 cursor-pointer"
               >
                 <Send className="w-4 h-4" />
-                <span>{submitting ? 'Broadcasting SOS Beacon...' : 'BROADCAST EMERGENCY SOS NOW'}</span>
+                <span>{submitting ? (t('sos.transmittingBtn') || 'Broadcasting SOS Beacon...') : (t('sos.transmitSosBtn') || 'BROADCAST EMERGENCY SOS NOW')}</span>
               </button>
             )}
           </div>

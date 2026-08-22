@@ -1,11 +1,13 @@
 import React from 'react'
 import ReportForm from '../../components/citizen/ReportForm'
 import { useFloodData } from '../../context/FloodDataContext'
+import { useLanguage } from '../../context/LanguageContext'
 import { formatTimeAgo, formatLocationText } from '../../utils/helpers'
 import { FilePlus2, Sparkles, MapPin, Clock, ShieldCheck, CheckCircle2 } from 'lucide-react'
 
 export default function ReportFlood() {
   const { reports } = useFloodData()
+  const { t } = useLanguage()
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
@@ -16,11 +18,11 @@ export default function ReportFlood() {
             <FilePlus2 className="w-5 h-5" />
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-            Report Flood Hazard & Waterlogging
+            {t('report.title') || 'Report Flood Hazard & Waterlogging'}
           </h1>
         </div>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Crowd-source road blockages, submerged culverts, and stranded residents. All submissions are automatically processed through AI Computer Vision for depth assessment.
+          {t('report.subtitle') || 'Crowd-source road blockages, submerged culverts, and stranded residents. All submissions are automatically processed through AI Computer Vision for depth assessment.'}
         </p>
       </div>
 
@@ -36,7 +38,7 @@ export default function ReportFlood() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
               <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Recent Community Ground Reports</span>
+                <span>{t('report.recentFeedTitle') || 'Recent Community Ground Reports'}</span>
               </h3>
               <span className="text-[10px] font-mono bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold">
                 LIVE FEED

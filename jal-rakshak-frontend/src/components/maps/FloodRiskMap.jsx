@@ -23,6 +23,9 @@ import {
 // Center and bounds adjuster component for Leaflet
 function MapRecenter({ center, zoom, bounds }) {
   const map = useMap()
+  const lat = center?.[0]
+  const lng = center?.[1]
+
   useEffect(() => {
     if (bounds && Array.isArray(bounds) && bounds.length > 1) {
       try {
@@ -30,10 +33,10 @@ function MapRecenter({ center, zoom, bounds }) {
       } catch (e) {
         // fallback
       }
-    } else if (center && Array.isArray(center) && center.length === 2 && !isNaN(center[0]) && !isNaN(center[1])) {
-      map.flyTo(center, zoom || map.getZoom(), { duration: 1.2 })
+    } else if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+      map.flyTo([lat, lng], zoom || map.getZoom(), { duration: 1.2 })
     }
-  }, [center, zoom, bounds, map])
+  }, [lat, lng, zoom, bounds, map])
   return null
 }
 
@@ -70,15 +73,20 @@ export default function FloodRiskMap({
     rescue: true,
   })
 
+  const centerLat = center?.[0]
+  const centerLng = center?.[1]
+  const navLat = activeNavPoint?.[0]
+  const navLng = activeNavPoint?.[1]
+
   // Keep map centered if external activeNavPoint or center prop updates
   useEffect(() => {
-    if (activeNavPoint) {
-      setMapCenter(activeNavPoint)
+    if (navLat !== undefined && navLng !== undefined) {
+      setMapCenter([navLat, navLng])
       setMapZoom(16)
-    } else if (center) {
-      setMapCenter(center)
+    } else if (centerLat !== undefined && centerLng !== undefined) {
+      setMapCenter([centerLat, centerLng])
     }
-  }, [activeNavPoint, center])
+  }, [navLat, navLng, centerLat, centerLng])
 
   // Create custom DivIcons for Leaflet
   const createDivIcon = (htmlContent, className = 'custom-div-icon', iconSize = [32, 32]) => {

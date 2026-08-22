@@ -7,6 +7,8 @@ import { useAlert } from '../../context/AlertContext'
 import { useLanguage } from '../../context/LanguageContext'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { floodApi } from '../../services/floodApi'
+import { LOADING_MESSAGES } from '../../utils/loadingMessages'
+import FloodRadarLoader from '../../components/common/FloodRadarLoader'
 import RiskCard from '../../components/citizen/RiskCard'
 import AlertBanner from '../../components/citizen/AlertBanner'
 import ForecastTimeline from '../../components/citizen/ForecastTimeline'
@@ -68,9 +70,14 @@ export default function CitizenDashboard() {
   }, [selectedLocation, gpsLat, gpsLoading, gpsError, refreshGps])
 
   // Sync GPS updates to LocationContext if in GPS mode
+  const lastSyncGpsRef = React.useRef({ lat: null, lng: null })
   useEffect(() => {
     if (gpsLat && gpsLng && (!selectedLocation || selectedLocation.source === 'gps')) {
-      if (selectedLocation?.latitude !== gpsLat || selectedLocation?.longitude !== gpsLng) {
+      if (
+        lastSyncGpsRef.current.lat !== gpsLat ||
+        lastSyncGpsRef.current.lng !== gpsLng
+      ) {
+        lastSyncGpsRef.current = { lat: gpsLat, lng: gpsLng }
         updateLocation({
           latitude: gpsLat,
           longitude: gpsLng,
@@ -80,7 +87,7 @@ export default function CitizenDashboard() {
         })
       }
     }
-  }, [gpsLat, gpsLng, gpsAcc, gpsTimestamp, selectedLocation, updateLocation])
+  }, [gpsLat, gpsLng, gpsAcc, gpsTimestamp, selectedLocation?.source, updateLocation])
 
   // Load telemetry data whenever active coordinates or dataMode changes
   const fetchDashboardTelemetry = useCallback(
@@ -169,37 +176,37 @@ export default function CitizenDashboard() {
   // Quick Action Buttons
   const quickActions = [
     {
-      title: 'Broadcast SOS Beacon',
-      desc: 'Instant GPS distress alert to NDRF & Local Control Room.',
+      title: t('citizen.sendSos') || 'Broadcast SOS Beacon',
+      desc: t('citizen.sendSosDesc') || 'Instant GPS distress alert to NDRF & Local Control Room.',
       link: '/emergency',
       icon: Flame,
       color: 'bg-red-600 text-white shadow-red-600/30',
       urgent: true,
     },
     {
-      title: 'Report Waterlogging',
-      desc: 'Crowd-source road blocks & water depth with photo analysis.',
+      title: t('citizen.reportHazard') || 'Report Waterlogging',
+      desc: t('citizen.reportHazardDesc') || 'Crowd-source road blocks & water depth with photo analysis.',
       link: '/report',
       icon: FilePlus2,
       color: 'bg-amber-500 text-white shadow-amber-500/20',
     },
     {
-      title: 'Nearest Safe Shelter',
-      desc: 'Verified relief camps with food, medical & power backup.',
+      title: t('citizen.findShelter') || 'Nearest Safe Shelter',
+      desc: t('citizen.findShelterDesc') || 'Verified relief camps with food, medical & power backup.',
       link: '/shelters',
       icon: Home,
       color: 'bg-purple-600 text-white shadow-purple-600/20',
     },
     {
-      title: 'Safe Evacuation Route',
-      desc: 'AI-computed elevated path avoiding submerged streets.',
+      title: t('citizen.safeNav') || 'Safe Evacuation Route',
+      desc: t('citizen.safeNavDesc') || 'AI-computed elevated path avoiding submerged streets.',
       link: '/route',
       icon: Navigation,
       color: 'bg-emerald-600 text-white shadow-emerald-600/20',
     },
     {
-      title: 'AI Flood Advisor',
-      desc: 'Ask questions in English, Hindi, or Odia about safety & water.',
+      title: t('nav.aiChat') || 'AI Flood Advisor',
+      desc: t('ai.subtitle') || 'Ask questions in English, Hindi, or Odia about safety & water.',
       link: '/chat',
       icon: Bot,
       color: 'bg-brand-600 text-white shadow-brand-600/20',
@@ -231,6 +238,16 @@ export default function CitizenDashboard() {
       ? 'Manual Selection'
       : 'Device GPS'
 
+  if ((gpsLoading && !selectedLocation) || (loadingRisk && !riskData && !dashboardData)) {
+    return (
+      <FloodRadarLoader
+        fullScreen
+        message={LOADING_MESSAGES.DASHBOARD.message}
+        subMessage={LOADING_MESSAGES.DASHBOARD.subMessage}
+      />
+    )
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* Active Critical Alert Banner */}
@@ -261,7 +278,7 @@ export default function CitizenDashboard() {
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2.5 py-1 rounded-full border border-brand-200">
-              Citizen Emergency Dashboard
+              {t('citizen.welcomeTitle') || 'Citizen Emergency Dashboard'}
             </span>
             <span
               className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
@@ -272,12 +289,18 @@ export default function CitizenDashboard() {
                   : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
               }`}
             >
-              Source: {locationSource}
+              {t('common.source') || 'Source'}: {
+                dataMode !== 'live'
+                  ? (t('common.simulation') || 'Simulation')
+                  : selectedLocation?.source === 'manual'
+                  ? (t('common.manualSelection') || 'Manual Selection')
+                  : (t('common.deviceGps') || 'Device GPS')
+              }
             </span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
-            Welcome back, {user?.fullName || user?.name || 'Citizen'}
+            {t('citizen.welcomeBack') || 'Welcome back'}, {user?.fullName || user?.name || 'Citizen'}
           </h1>
 
           {/* Location details row */}
@@ -285,7 +308,7 @@ export default function CitizenDashboard() {
             <div className="flex items-center gap-1 font-bold text-slate-900">
               <MapPin className="w-4 h-4 text-brand-600" />
               <span>{resolvedLocationName}</span>
-              {resolvedDistrict && <span className="text-slate-500 font-normal">• District: <strong className="text-slate-800">{resolvedDistrict}</strong></span>}
+              {resolvedDistrict && <span className="text-slate-500 font-normal">• {t('common.district') || 'District'}: <strong className="text-slate-800">{resolvedDistrict}</strong></span>}
               {resolvedState && <span className="text-slate-500 font-normal">({resolvedState})</span>}
             </div>
 
@@ -298,39 +321,39 @@ export default function CitizenDashboard() {
             )}
 
             <span className="text-slate-400 text-xs">
-              • Last updated: {new Date(lastUpdated).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+              • {t('common.lastUpdated') || 'Last updated'}: {new Date(lastUpdated).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
         </div>
 
         {/* Location Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:w-auto">
           <button
             type="button"
             onClick={handleManualRefresh}
             disabled={refreshing || gpsLoading}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs shadow-xs transition disabled:opacity-50 cursor-pointer"
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs shadow-xs transition disabled:opacity-50 cursor-pointer w-full sm:w-auto"
             title="Refresh current location & flood telemetry"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-brand-600 ${refreshing || gpsLoading ? 'animate-spin' : ''}`} />
-            <span>{refreshing ? 'Refreshing...' : 'Refresh Current Location'}</span>
+            <span>{refreshing ? 'Refreshing...' : (t('common.refreshLocation') || 'Refresh Current Location')}</span>
           </button>
 
           <button
             type="button"
             onClick={() => setLocationModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-brand-50 border border-brand-200 hover:bg-brand-100 text-brand-700 font-bold text-xs shadow-xs transition cursor-pointer"
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-brand-50 border border-brand-200 hover:bg-brand-100 text-brand-700 font-bold text-xs shadow-xs transition cursor-pointer w-full sm:w-auto"
           >
             <MapPin className="w-3.5 h-3.5 text-brand-600" />
-            <span>Choose Location Manually</span>
+            <span>{t('common.chooseLocationManually') || 'Choose Location Manually'}</span>
           </button>
 
           <Link
             to="/emergency"
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs shadow-lg shadow-red-600/30 transition transform active:scale-95 animate-pulse"
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs shadow-lg shadow-red-600/30 transition transform active:scale-95 animate-pulse w-full sm:w-auto"
           >
             <Flame className="w-4 h-4" />
-            <span>Emergency SOS</span>
+            <span>{t('nav.emergencySOS') || 'Emergency SOS'}</span>
           </Link>
         </div>
       </div>
@@ -351,7 +374,7 @@ export default function CitizenDashboard() {
       <div>
         <h3 className="text-base font-extrabold text-slate-900 mb-3 flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-brand-600" />
-          <span>Quick Life-Saving Actions</span>
+          <span>{t('citizen.quickActions') || 'Quick Life-Saving Actions'}</span>
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
           {quickActions.map((action, idx) => {
@@ -391,7 +414,7 @@ export default function CitizenDashboard() {
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h3 className="text-base font-extrabold text-slate-900 flex flex-wrap items-center gap-2">
             <Activity className="w-4 h-4 text-brand-600 animate-pulse" />
-            <span>Regional River Discharge Forecast</span>
+            <span>{t('citizen.liveRivers') || 'Regional River Discharge Forecast'}</span>
             <span
               className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
                 dataMode === 'live'
@@ -425,7 +448,7 @@ export default function CitizenDashboard() {
                           : 'bg-emerald-100 text-emerald-700'
                       }`}
                     >
-                      {isDanger ? '▲ Above Danger' : isWarning ? '▲ Warning Level' : 'Normal'}
+                      {isDanger ? `▲ ${t('citizen.aboveDanger') || 'Above Danger'}` : isWarning ? `▲ ${t('citizen.warningLevel') || 'Warning Level'}` : (t('citizen.normalStatus') || 'Normal Flow')}
                     </span>
                     <span className="text-[11px] font-semibold text-slate-400">{river.state}</span>
                   </div>
@@ -437,7 +460,7 @@ export default function CitizenDashboard() {
                         {river.currentLevel !== undefined ? `${river.currentLevel}m` : '--'}
                       </span>
                       <span className="text-xs text-slate-500">
-                        Danger Mark: <strong>{river.dangerLevel}m</strong>
+                        {t('common.dangerMark') || 'Danger Mark'}: <strong>{river.dangerLevel}m</strong>
                       </span>
                     </div>
                   </div>

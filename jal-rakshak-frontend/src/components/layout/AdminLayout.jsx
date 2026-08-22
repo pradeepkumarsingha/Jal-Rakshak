@@ -10,7 +10,7 @@ export default function AdminLayout() {
   const location = useLocation()
 
   if (!isAuthenticated || user?.role !== 'admin') {
-    return <Navigate to="/login?portal=admin" state={{ from: location }} replace />
+    return <Navigate to="/login" state={{ from: location }} replace />
   }
 
   return (

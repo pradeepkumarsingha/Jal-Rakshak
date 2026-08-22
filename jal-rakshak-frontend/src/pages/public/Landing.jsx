@@ -72,10 +72,10 @@ export default function Landing() {
               </p>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
                 <Link
                   to="/emergency"
-                  className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-extrabold text-sm shadow-xl shadow-red-600/30 flex items-center gap-2 transition transform active:scale-95 animate-pulse"
+                  className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-extrabold text-sm shadow-xl shadow-red-600/30 flex items-center justify-center gap-2 transition transform active:scale-95 animate-pulse text-center"
                 >
                   <Flame className="w-5 h-5" />
                   <span>Launch Emergency SOS</span>
@@ -83,7 +83,7 @@ export default function Landing() {
 
                 <Link
                   to="/dashboard"
-                  className="px-6 py-3.5 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-lg shadow-brand-600/20 flex items-center gap-2 transition"
+                  className="px-6 py-3.5 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-lg shadow-brand-600/20 flex items-center justify-center gap-2 transition text-center"
                 >
                   <span>Citizen Flood Hub</span>
                   <ArrowRight className="w-4 h-4" />
@@ -91,7 +91,7 @@ export default function Landing() {
 
                 <Link
                   to="/map"
-                  className="px-5 py-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 text-slate-200 font-semibold text-sm border border-slate-700 flex items-center gap-2 transition"
+                  className="px-5 py-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 text-slate-200 font-semibold text-sm border border-slate-700 flex items-center justify-center gap-2 transition text-center"
                 >
                   <MapPin className="w-4 h-4 text-cyan-400" />
                   <span>Interactive Map</span>
@@ -196,7 +196,7 @@ export default function Landing() {
             </div>
             <div className="mt-6 pt-4 border-t border-slate-100">
               <Link
-                to={user?.role === 'citizen' ? '/dashboard' : '/login?portal=citizen'}
+                to={user?.role === 'citizen' ? '/dashboard' : '/login'}
                 className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md transition"
               >
                 <span>Enter Citizen Portal</span>
@@ -219,7 +219,7 @@ export default function Landing() {
             </div>
             <div className="mt-6 pt-4 border-t border-slate-800">
               <Link
-                to={user?.role === 'admin' ? '/admin' : '/login?portal=admin'}
+                to={user?.role === 'admin' ? '/admin' : '/login'}
                 className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition"
               >
                 <span>Launch Admin Command</span>
@@ -242,7 +242,7 @@ export default function Landing() {
             </div>
             <div className="mt-6 pt-4 border-t border-slate-800">
               <Link
-                to={user?.role === 'rescue' ? '/rescue' : '/login?portal=rescue'}
+                to={user?.role === 'rescue' ? '/rescue' : '/login'}
                 className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition"
               >
                 <span>Open Tactical Portal</span>

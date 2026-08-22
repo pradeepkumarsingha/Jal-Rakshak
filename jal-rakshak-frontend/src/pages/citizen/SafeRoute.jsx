@@ -4,7 +4,10 @@ import { gisApi } from '../../services/gisApi'
 import { useFloodData } from '../../context/FloodDataContext'
 import { useLocation } from '../../context/LocationContext'
 import { useGeolocation } from '../../hooks/useGeolocation'
+import { useLanguage } from '../../context/LanguageContext'
 import FloodRiskMap from '../../components/maps/FloodRiskMap'
+import FloodRadarLoader from '../../components/common/FloodRadarLoader'
+import { LOADING_MESSAGES } from '../../utils/loadingMessages'
 import {
   Navigation,
   MapPin,
@@ -24,6 +27,7 @@ import {
 } from 'lucide-react'
 
 export default function SafeRoute() {
+  const { t } = useLanguage()
   const [searchParams] = useSearchParams()
   const initialShelterId = searchParams.get('shelter') || 'SH-01'
   const { shelters } = useFloodData()
@@ -132,11 +136,11 @@ export default function SafeRoute() {
               <Navigation className="w-5 h-5" />
             </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-              AI Flood-Safe Evacuation Pathfinder
+              {t('safeRoute.title') || 'AI Flood-Safe Evacuation Pathfinder'}
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Dynamic evacuation route avoiding flooded culverts, submerged embankments, and low-lying underpasses.
+            {t('safeRoute.subtitle') || 'Dynamic evacuation route avoiding flooded culverts, submerged embankments, and low-lying underpasses.'}
           </p>
         </div>
 
@@ -149,7 +153,7 @@ export default function SafeRoute() {
               className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/30 transition transform active:scale-95 cursor-pointer disabled:opacity-50 animate-pulse"
             >
               <Play className="w-4 h-4 fill-white" />
-              <span>Start In-Map Navigation</span>
+              <span>{t('safeRoute.startNav') || 'Start In-Map Navigation'}</span>
             </button>
           ) : (
             <button
@@ -157,7 +161,7 @@ export default function SafeRoute() {
               className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs shadow-md transition cursor-pointer"
             >
               <Square className="w-3.5 h-3.5 fill-white" />
-              <span>Exit Navigation</span>
+              <span>{t('safeRoute.stopNav') || 'Exit Navigation'}</span>
             </button>
           )}
 
@@ -169,7 +173,7 @@ export default function SafeRoute() {
             title="Open turn-by-turn navigation directly in Google Maps application"
           >
             <ExternalLink className="w-3.5 h-3.5 text-brand-600" />
-            <span>Google Maps GPS</span>
+            <span>{t('common.openInMaps') || 'Google Maps GPS'}</span>
           </a>
         </div>
       </div>
@@ -179,7 +183,7 @@ export default function SafeRoute() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           {/* Origin */}
           <div className="md:col-span-5">
-            <label className="text-xs font-bold text-slate-700 block mb-1">Origin (Your Location)</label>
+            <label className="text-xs font-bold text-slate-700 block mb-1">{t('safeRoute.origin') || 'Origin (Your Location)'}</label>
             <div className="relative">
               <MapPin className="w-4 h-4 text-brand-600 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -193,7 +197,7 @@ export default function SafeRoute() {
 
           {/* Destination */}
           <div className="md:col-span-5">
-            <label className="text-xs font-bold text-slate-700 block mb-1">Destination Relief Shelter</label>
+            <label className="text-xs font-bold text-slate-700 block mb-1">{t('safeRoute.destination') || 'Destination Relief Shelter'}</label>
             <select
               value={selectedShelterId}
               onChange={(e) => setSelectedShelterId(e.target.value)}
@@ -215,28 +219,39 @@ export default function SafeRoute() {
               className="w-full py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md shadow-brand-600/20 transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>{loading ? 'Routing...' : 'Re-Route'}</span>
+              <span>{loading ? (t('safeRoute.routingBtn') || 'Routing...') : (t('safeRoute.rerouteBtn') || 'Re-Route')}</span>
             </button>
           </div>
         </div>
 
+        {/* Loading Indicator */}
+        {loading && (
+          <div className="pt-4 border-t border-slate-100">
+            <FloodRadarLoader
+              compact
+              message={LOADING_MESSAGES.SAFE_ROUTE.message}
+              subMessage={LOADING_MESSAGES.SAFE_ROUTE.subMessage}
+            />
+          </div>
+        )}
+
         {/* Route Stats Summary Strip */}
-        {routeResult && (
+        {!loading && routeResult && (
           <div className="pt-3 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200">
-              <span className="text-[10px] uppercase font-bold text-emerald-700">Safety Status</span>
-              <div className="font-extrabold text-emerald-950 text-sm mt-0.5">100% Flood-Clear</div>
+              <span className="text-[10px] uppercase font-bold text-emerald-700">{t('safeRoute.safetyStatus') || 'Safety Status'}</span>
+              <div className="font-extrabold text-emerald-950 text-sm mt-0.5">{t('safeRoute.floodClear') || '100% Flood-Clear'}</div>
             </div>
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
-              <span className="text-[10px] uppercase font-bold text-slate-500">Total Distance</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500">{t('safeRoute.totalDistance') || 'Total Distance'}</span>
               <div className="font-extrabold text-slate-900 text-sm mt-0.5">{routeResult.totalDistanceKm} km</div>
             </div>
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
-              <span className="text-[10px] uppercase font-bold text-slate-500">Estimated Transit</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500">{t('safeRoute.estimatedTransit') || 'Estimated Transit'}</span>
               <div className="font-extrabold text-slate-900 text-sm mt-0.5">~{routeResult.estimatedTimeMinutes} mins</div>
             </div>
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
-              <span className="text-[10px] uppercase font-bold text-slate-500">Elevation Gain</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500">{t('safeRoute.elevationGain') || 'Elevation Gain'}</span>
               <div className="font-extrabold text-slate-900 text-sm mt-0.5">+{routeResult.elevationGainMeters}m High Ground</div>
             </div>
           </div>
@@ -317,7 +332,7 @@ export default function SafeRoute() {
           {/* Clean Map Container without overlays */}
           <div className="bg-white rounded-3xl p-2 border border-slate-200 shadow-sm overflow-hidden">
             <FloodRiskMap
-              height={isNavigating ? '520px' : '580px'}
+              height={typeof window !== 'undefined' && window.innerWidth < 640 ? (isNavigating ? '360px' : '400px') : (isNavigating ? '520px' : '580px')}
               center={activeNavPoint || [liveLat, liveLng]}
               zoom={isNavigating ? 16 : 13}
               routeWaypoints={routeResult?.waypoints}
@@ -335,10 +350,10 @@ export default function SafeRoute() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
                 <Navigation className="w-4 h-4 text-emerald-600" />
-                <span>Turn-by-Turn Safe Steps</span>
+                <span>{t('safeRoute.turnByTurnTitle') || 'Turn-by-Turn Safe Steps'}</span>
               </h3>
               <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-                Verified Safe
+                {t('safeRoute.verifiedSafeBadge') || 'Verified Safe'}
               </span>
             </div>
 
@@ -346,7 +361,7 @@ export default function SafeRoute() {
             {routeResult?.hazardWarnings?.map((w, i) => (
               <div key={i} className="p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span><strong>Hazard Avoided:</strong> {w}</span>
+                <span><strong>{t('safeRoute.hazardAvoided') || 'Hazard Avoided:'}</strong> {w}</span>
               </div>
             ))}
 

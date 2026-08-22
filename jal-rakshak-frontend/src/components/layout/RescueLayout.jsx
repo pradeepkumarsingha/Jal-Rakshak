@@ -10,7 +10,7 @@ export default function RescueLayout() {
   const location = useLocation()
 
   if (!isAuthenticated || user?.role !== 'rescue') {
-    return <Navigate to="/login?portal=rescue" state={{ from: location }} replace />
+    return <Navigate to="/login" state={{ from: location }} replace />
   }
 
   return (

@@ -50,11 +50,15 @@ export function AuthProvider({ children }) {
   const login = async (credentials) => {
     setLoading(true)
     try {
-      const res = await api.post('/api/v1/auth/login', {
+      const payload = {
         email: credentials.email,
         password: credentials.password,
-        role: credentials.portal || credentials.role,
-      })
+      }
+      if (credentials.portal || credentials.role) {
+        payload.role = credentials.portal || credentials.role
+      }
+
+      const res = await api.post('/api/v1/auth/login', payload)
 
       const responseData = res.data?.data || res.data
       const receivedToken = responseData.accessToken || responseData.token
@@ -78,7 +82,12 @@ export function AuthProvider({ children }) {
           err.code === 'ECONNREFUSED')
 
       if (isNetworkError) {
-        const role = credentials.portal || credentials.role || 'citizen'
+        const lowerEmail = (credentials.email || '').toLowerCase()
+        const role =
+          credentials.portal ||
+          credentials.role ||
+          (lowerEmail.includes('admin') || lowerEmail.includes('src') ? 'admin' : lowerEmail.includes('rescue') || lowerEmail.includes('ndrf') ? 'rescue' : 'citizen')
+
         const simulatedUser = {
           id: `USR-${Date.now()}`,
           name: credentials.email.split('@')[0],

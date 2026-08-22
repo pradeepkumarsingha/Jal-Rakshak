@@ -6,6 +6,8 @@ import { useAlert } from '../../context/AlertContext'
 import { getSocket } from '../../services/socket'
 import FloodRiskMap from '../../components/maps/FloodRiskMap'
 import AssignmentCard from '../../components/rescue/AssignmentCard'
+import FloodRadarLoader from '../../components/common/FloodRadarLoader'
+import { LOADING_MESSAGES } from '../../utils/loadingMessages'
 import {
   LifeBuoy,
   Users,
@@ -159,6 +161,17 @@ export default function RescueDashboard() {
   const squadBase = `${teamInfo?.district || 'Cuttack'}, ${teamInfo?.state || 'Odisha'} Basecamp`
   const squadStatus = activeMissions.length > 0 ? 'DEPLOYED ON MISSION' : 'AVAILABLE READY'
   const isAvailable = activeMissions.length === 0
+
+  if (loading && assignments.length === 0 && !teamInfo) {
+    return (
+      <div className="py-16 flex justify-center">
+        <FloodRadarLoader
+          message={LOADING_MESSAGES.RESCUE.message}
+          subMessage={LOADING_MESSAGES.RESCUE.subMessage}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

@@ -5,7 +5,9 @@ import { z } from 'zod'
 import { reportApi } from '../../services/reportApi'
 import { useAlert } from '../../context/AlertContext'
 import { useAuth } from '../../context/AuthContext'
+import { useLanguage } from '../../context/LanguageContext'
 import ImageUpload from './ImageUpload'
+import ImageUploadProgress from './ImageUploadProgress'
 import {
   MapPin,
   Locate,
@@ -26,10 +28,13 @@ const reportSchema = z.object({
 })
 
 export default function ReportForm({ onSuccess }) {
+  const { t } = useLanguage()
   const { showToast } = useAlert()
   const { user } = useAuth()
   const [selectedImage, setSelectedImage] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadStage, setUploadStage] = useState('uploading')
   const [submittedReport, setSubmittedReport] = useState(null)
   const [gpsLoading, setGpsLoading] = useState(false)
   const [coords, setCoords] = useState({ lat: 20.2961, lng: 85.8245 })
@@ -78,6 +83,9 @@ export default function ReportForm({ onSuccess }) {
 
   const onSubmit = async (data) => {
     setSubmitting(true)
+    setUploadProgress(15)
+    setUploadStage('uploading')
+
     try {
       const formData = new FormData()
       formData.append('latitude', coords.lat)
@@ -91,9 +99,19 @@ export default function ReportForm({ onSuccess }) {
         formData.append('image', selectedImage)
       }
 
+      setUploadProgress(50)
+      if (selectedImage) {
+        setTimeout(() => {
+          setUploadStage('analyzing')
+          setUploadProgress(85)
+        }, 600)
+      }
+
       const response = await reportApi.submitReport(formData)
       const reportResult = response.data || response
 
+      setUploadProgress(100)
+      setUploadStage('complete')
       setSubmittedReport(reportResult)
 
       showToast({
@@ -104,6 +122,7 @@ export default function ReportForm({ onSuccess }) {
 
       if (onSuccess) onSuccess(reportResult)
     } catch (err) {
+      setUploadStage('error')
       showToast({
         title: 'Report Submission Failed',
         message: err.response?.data?.error?.message || 'Failed to submit report. Please try again.',
@@ -204,17 +223,17 @@ export default function ReportForm({ onSuccess }) {
           <div>
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
-              Report Flood Hazard & Road Waterlogging
+              {t('report.title') || 'Report Flood Hazard & Road Waterlogging'}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Submit observed water levels and road obstructions to assist emergency teams and alert neighbours.
+              {t('report.subtitle') || 'Submit observed water levels and road obstructions to assist emergency teams and alert neighbours.'}
             </p>
           </div>
 
           {/* Location & GPS */}
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1">
-              Location / Landmark Address *
+              {t('report.locationAddress') || 'Location / Landmark Address *'}
             </label>
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -230,11 +249,11 @@ export default function ReportForm({ onSuccess }) {
                 type="button"
                 onClick={handleLocateMe}
                 disabled={gpsLoading}
-                className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 shrink-0 transition"
+                className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 shrink-0 transition cursor-pointer"
                 title="Detect GPS Pin"
               >
                 <Locate className={`w-3.5 h-3.5 text-brand-600 ${gpsLoading ? 'animate-spin' : ''}`} />
-                <span>GPS Pin</span>
+                <span>{t('sos.autoGpsPin') || 'GPS Pin'}</span>
               </button>
             </div>
             {errors.address && <p className="text-red-600 text-[11px] mt-1">{errors.address.message}</p>}
@@ -242,7 +261,7 @@ export default function ReportForm({ onSuccess }) {
 
           {/* Water Level Selector */}
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1.5">Water Level Severity *</label>
+            <label className="text-xs font-bold text-slate-700 block mb-1.5">{t('report.waterDepth') || 'Water Level Severity *'}</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
                 { id: 'LOW', label: 'LOW', desc: 'Ankle deep (< 0.3m)' },
@@ -254,7 +273,7 @@ export default function ReportForm({ onSuccess }) {
                   key={lvl.id}
                   type="button"
                   onClick={() => setValue('waterLevel', lvl.id)}
-                  className={`p-2.5 rounded-xl border text-left transition ${
+                  className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
                     selectedWaterLevel === lvl.id
                       ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-400 text-amber-950 font-bold'
                       : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
@@ -269,7 +288,7 @@ export default function ReportForm({ onSuccess }) {
 
           {/* Road Status */}
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1.5">Road Passability *</label>
+            <label className="text-xs font-bold text-slate-700 block mb-1.5">{t('report.roadCondition') || 'Road Passability *'}</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
                 { id: 'OPEN', label: 'OPEN', color: 'emerald' },
@@ -281,7 +300,7 @@ export default function ReportForm({ onSuccess }) {
                   key={rd.id}
                   type="button"
                   onClick={() => setValue('roadStatus', rd.id)}
-                  className={`p-2 rounded-xl border text-center transition ${
+                  className={`p-2 rounded-xl border text-center transition cursor-pointer ${
                     selectedRoadStatus === rd.id
                       ? 'bg-brand-50 border-brand-500 ring-2 ring-brand-400 text-brand-900 font-bold'
                       : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
@@ -296,31 +315,39 @@ export default function ReportForm({ onSuccess }) {
           {/* Photo Upload */}
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1">
-              Hazard Photo (Cloudinary Upload & AI Image Verification)
+              {t('report.hazardPhoto') || 'Hazard Photo (Cloudinary Upload & AI Image Verification)'}
             </label>
             <ImageUpload onFileSelect={(file) => setSelectedImage(file)} />
           </div>
 
           {/* Description */}
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Observation Details *</label>
+            <label className="text-xs font-bold text-slate-700 block mb-1">{t('report.observationDetails') || 'Observation Details *'}</label>
             <textarea
               rows={3}
               {...register('description')}
-              placeholder="Provide context on water flow speed, impassable vehicles, trapped elderly, or downed electrical lines..."
+              placeholder={t('report.observationPlaceholder') || 'Provide context on water flow speed, impassable vehicles, trapped elderly, or downed electrical lines...'}
               className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-brand-500 outline-none"
             />
             {errors.description && <p className="text-red-600 text-[11px] mt-1">{errors.description.message}</p>}
           </div>
 
+          {/* Upload Progress Display */}
+          {submitting && (
+            <ImageUploadProgress
+              uploadProgress={uploadProgress}
+              stage={uploadStage}
+            />
+          )}
+
           {/* Submit button */}
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-brand-600/30 disabled:opacity-50"
+            className="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-brand-600/30 disabled:opacity-50 cursor-pointer"
           >
             <Send className="w-4 h-4" />
-            <span>{submitting ? 'Uploading to Cloudinary & Analyzing...' : 'Transmit Verified Hazard Report'}</span>
+            <span>{submitting ? (t('report.submittingReportBtn') || 'Uploading to Cloudinary & Analyzing...') : (t('report.submitReportBtn') || 'Transmit Verified Hazard Report')}</span>
           </button>
         </form>
       )}

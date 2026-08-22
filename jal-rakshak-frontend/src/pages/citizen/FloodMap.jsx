@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import FloodRiskMap from '../../components/maps/FloodRiskMap'
+import FloodRadarLoader from '../../components/common/FloodRadarLoader'
+import { LOADING_MESSAGES } from '../../utils/loadingMessages'
 import { useFloodData } from '../../context/FloodDataContext'
 import { useLocation } from '../../context/LocationContext'
 import { useGeolocation } from '../../hooks/useGeolocation'
@@ -7,9 +9,9 @@ import { MapPin, ShieldAlert, Layers, Navigation, Home, Flame, Info, Locate } fr
 import { Link } from 'react-router-dom'
 
 export default function FloodMap() {
-  const { riskZones, shelters, emergencies, reports } = useFloodData()
+  const { riskZones, shelters, emergencies, reports, loading } = useFloodData()
   const { selectedLocation } = useLocation()
-  const { latitude: gpsLat, longitude: gpsLng } = useGeolocation()
+  const { latitude: gpsLat, longitude: gpsLng, loading: gpsLoading } = useGeolocation()
 
   const liveLat = selectedLocation?.latitude ?? gpsLat ?? 20.2218
   const liveLng = selectedLocation?.longitude ?? gpsLng ?? 85.6736
@@ -26,6 +28,17 @@ export default function FloodMap() {
   }
 
   const mapCenter = activeTab === 'LIVE' ? [liveLat, liveLng] : districtCoords[activeTab]
+
+  if (loading && riskZones.length === 0 && shelters.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <FloodRadarLoader
+          message={LOADING_MESSAGES.FLOOD_MAP.message}
+          subMessage={LOADING_MESSAGES.FLOOD_MAP.subMessage}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
@@ -121,7 +134,7 @@ export default function FloodMap() {
 
       {/* Main Map Container */}
       <FloodRiskMap
-        height="640px"
+        height={typeof window !== 'undefined' && window.innerWidth < 640 ? '460px' : '640px'}
         center={mapCenter}
         zoom={activeTab === 'LIVE' ? 14 : 13}
         showControls={true}

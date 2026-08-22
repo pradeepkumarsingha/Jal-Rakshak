@@ -8,7 +8,7 @@ export default function MapControls({
   setSelectedTime,
   onLocateUser,
 }) {
-  const [isExpanded, setIsExpanded] = useState(true)
+  const [isExpanded, setIsExpanded] = useState(() => (typeof window !== 'undefined' ? window.innerWidth > 768 : true))
   const [activeTab, setActiveTab] = useState('ALL') // 'ALL' | 'FORECAST' | 'LAYERS'
 
   const timeSteps = [

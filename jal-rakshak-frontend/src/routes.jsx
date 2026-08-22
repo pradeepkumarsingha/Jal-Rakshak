@@ -4,7 +4,8 @@ import CitizenLayout from './components/layout/CitizenLayout'
 import AdminLayout from './components/layout/AdminLayout'
 import RescueLayout from './components/layout/RescueLayout'
 import PublicLayout from './components/layout/PublicLayout'
-import Loading from './components/common/Loading'
+import FloodRadarLoader from './components/common/FloodRadarLoader'
+import { LOADING_MESSAGES } from './utils/loadingMessages'
 
 // Public Pages
 const Landing = lazy(() => import('./pages/public/Landing'))
@@ -33,7 +34,14 @@ const AssignedRequests = lazy(() => import('./pages/rescue/AssignedRequests'))
 
 export default function AppRoutes() {
   return (
-    <Suspense fallback={<Loading message="Initializing Jal Rakshak AI Platform..." />}>
+    <Suspense
+      fallback={
+        <FloodRadarLoader
+          message={LOADING_MESSAGES.APP_START.message}
+          subMessage={LOADING_MESSAGES.APP_START.subMessage}
+        />
+      }
+    >
       <Routes>
         {/* Public Routes */}
         <Route element={<PublicLayout />}>

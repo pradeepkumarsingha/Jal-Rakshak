@@ -6,6 +6,8 @@ import { adminApi } from '../../services/adminApi'
 import StatCard from '../../components/admin/StatCard'
 import FloodRiskMap from '../../components/maps/FloodRiskMap'
 import AlertBroadcastModal from '../../components/admin/AlertBroadcastModal'
+import FloodRadarLoader from '../../components/common/FloodRadarLoader'
+import { LOADING_MESSAGES } from '../../utils/loadingMessages'
 import {
   ShieldAlert,
   Flame,
@@ -122,6 +124,17 @@ export default function AdminDashboard() {
     { time: '18:00 (Live)', inflow: 11.45, outflow: 11.20, level: 629.8 },
     { time: '21:00 (Est)', inflow: 10.9, outflow: 11.2, level: 629.6 },
   ]
+
+  if (loadingData && emergencies.length === 0 && reports.length === 0) {
+    return (
+      <div className="py-16 flex justify-center">
+        <FloodRadarLoader
+          message={LOADING_MESSAGES.ADMIN.message}
+          subMessage={LOADING_MESSAGES.ADMIN.subMessage}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

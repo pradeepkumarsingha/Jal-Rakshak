@@ -1,5 +1,6 @@
 import React from 'react'
 import { getSeverityInfo } from '../../utils/helpers'
+import { useLanguage } from '../../context/LanguageContext'
 import { AlertTriangle, CloudRain, Droplets, Gauge, ShieldAlert, Sparkles, HelpCircle } from 'lucide-react'
 
 export default function RiskCard({
@@ -12,6 +13,7 @@ export default function RiskCard({
   isSimulation = false,
   message = null,
 }) {
+  const { t } = useLanguage()
   const isAvailable = riskScore !== null && riskScore !== undefined
   const severity = isAvailable
     ? getSeverityInfo(riskScore)
@@ -23,6 +25,8 @@ export default function RiskCard({
         border: 'border-slate-300',
         badgeClass: 'bg-slate-100 text-slate-700 border border-slate-300 px-2.5 py-0.5 rounded-full text-xs font-extrabold flex items-center gap-1',
       }
+
+  const translatedLevel = t(`severity.${severity.level}`) || `${severity.level} RISK`
 
   return (
     <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100 relative overflow-hidden">
@@ -69,11 +73,11 @@ export default function RiskCard({
             <div className="flex items-center gap-2 flex-wrap">
               <span className={severity.badgeClass}>
                 <ShieldAlert className="w-3.5 h-3.5" />
-                <span>{severity.level} RISK</span>
+                <span>{translatedLevel}</span>
               </span>
               {isSimulation ? (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 border border-amber-300">
-                  Simulated Scenario
+                  {t('common.simulation') || 'Simulated Scenario'}
                 </span>
               ) : (
                 <span className="text-xs text-slate-400 font-medium">Auto AI Telemetry</span>
@@ -84,7 +88,7 @@ export default function RiskCard({
             </h3>
             {predictedInundationDepth ? (
               <p className="text-xs text-slate-500 mt-0.5">
-                Predicted Inundation: <strong className="text-slate-800">{predictedInundationDepth}</strong>
+                {t('citizen.riskGaugeTitle') || 'Predicted Inundation'}: <strong className="text-slate-800">{predictedInundationDepth}</strong>
               </p>
             ) : isAvailable ? (
               <p className="text-xs text-slate-500 mt-0.5">
@@ -96,7 +100,7 @@ export default function RiskCard({
               </p>
             )}
             <p className="text-[11px] text-slate-400 mt-1">
-              Updated: {new Date(lastUpdated).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+              {t('common.lastUpdated') || 'Updated'}: {new Date(lastUpdated).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
             </p>
           </div>
         </div>
@@ -104,7 +108,7 @@ export default function RiskCard({
         {/* Right Side: Contributing Environmental Factors */}
         <div className="md:max-w-md w-full bg-slate-50/80 rounded-2xl p-4 border border-slate-100">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2">
-            Key Risk Drivers (Neural Hydro-Model)
+            {t('citizen.factorsTitle') || 'Key Risk Drivers (Neural Hydro-Model)'}
           </span>
           {factors && factors.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

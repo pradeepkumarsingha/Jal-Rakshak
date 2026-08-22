@@ -1,10 +1,14 @@
 import React, { useState } from 'react'
 import { useFloodData } from '../../context/FloodDataContext'
 import ShelterCard from '../../components/citizen/ShelterCard'
+import FloodRadarLoader from '../../components/common/FloodRadarLoader'
+import { LOADING_MESSAGES } from '../../utils/loadingMessages'
+import { useLanguage } from '../../context/LanguageContext'
 import { Home, Search, Filter, Sparkles, MapPin, Phone, Users, ShieldCheck } from 'lucide-react'
 
 export default function ShelterFinder() {
-  const { shelters } = useFloodData()
+  const { shelters, loading } = useFloodData()
+  const { t } = useLanguage()
   const [search, setSearch] = useState('')
   const [filterFacility, setFilterFacility] = useState('ALL')
   const [onlyAvailable, setOnlyAvailable] = useState(false)
@@ -24,6 +28,17 @@ export default function ShelterFinder() {
     })
     .sort((a, b) => (b.isRecommended ? 1 : 0) - (a.isRecommended ? 1 : 0))
 
+  if (loading && shelters.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <FloodRadarLoader
+          message={LOADING_MESSAGES.SHELTERS.message}
+          subMessage={LOADING_MESSAGES.SHELTERS.subMessage}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
       {/* Header */}
@@ -33,11 +48,11 @@ export default function ShelterFinder() {
             <Home className="w-5 h-5" />
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
-            Relief Camp & Shelter Locator
+            {t('shelters.title') || 'Relief Camp & Shelter Locator'}
           </h1>
         </div>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Find verified government cyclone and flood shelters with elevated foundations, clean water, medical aid, and live headcount vacancy.
+          {t('shelters.subtitle') || 'Find verified government cyclone and flood shelters with elevated foundations, clean water, medical aid, and live headcount vacancy.'}
         </p>
       </div>
 
@@ -51,7 +66,7 @@ export default function ShelterFinder() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search shelter by name or locality (e.g. Barabati, Ravenshaw, Patia)..."
+              placeholder={t('shelters.searchPlaceholder') || 'Search shelter by name or locality (e.g. Barabati, Ravenshaw, Patia)...'}
               className="w-full pl-10 pr-3 py-2.5 rounded-2xl border border-slate-200 text-xs focus:ring-2 focus:ring-brand-500 outline-none"
             />
           </div>
@@ -64,14 +79,14 @@ export default function ShelterFinder() {
               onChange={(e) => setOnlyAvailable(e.target.checked)}
               className="rounded text-brand-600 focus:ring-brand-500"
             />
-            <span>Show Only Vacant Shelters</span>
+            <span>{t('common.vacantOnly') || 'Show Only Vacant Shelters'}</span>
           </label>
         </div>
 
         {/* Facility Filters */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 shrink-0 mr-1">
-            Filter by Facility:
+            {t('shelters.filterByFacility') || 'Filter by Facility:'}
           </span>
           {facilitiesList.map((fac) => (
             <button
@@ -83,7 +98,7 @@ export default function ShelterFinder() {
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              {fac}
+              {fac === 'ALL' ? (t('common.all') || 'ALL') : fac}
             </button>
           ))}
         </div>
@@ -94,7 +109,7 @@ export default function ShelterFinder() {
         {filtered.length === 0 ? (
           <div className="col-span-3 py-12 text-center bg-white rounded-3xl border border-slate-200 p-8">
             <Home className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-            <p className="text-sm font-bold text-slate-700">No shelters match your filter criteria.</p>
+            <p className="text-sm font-bold text-slate-700">{t('shelters.noSheltersFound') || 'No shelters match your filter criteria.'}</p>
             <button
               onClick={() => {
                 setSearch('')
@@ -103,7 +118,7 @@ export default function ShelterFinder() {
               }}
               className="mt-3 text-xs text-brand-600 font-bold hover:underline"
             >
-              Reset All Filters
+              {t('common.resetFilters') || 'Reset All Filters'}
             </button>
           </div>
         ) : (

@@ -3,59 +3,35 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useAlert } from '../../context/AlertContext'
 import {
-  ShieldAlert,
   Lock,
   Mail,
-  LifeBuoy,
-  Users,
-  Shield,
   ArrowRight,
-  ArrowLeft,
-  AlertTriangle,
-  Radio,
+  Eye,
+  EyeOff,
+  AlertCircle,
   KeyRound,
   CheckCircle2,
   Copy,
   Check,
   Sparkles,
-  LogOut,
+  ShieldCheck,
 } from 'lucide-react'
 import JalRakshakLogo from '../../components/common/JalRakshakLogo'
 
 export default function Login() {
-  const { user, isAuthenticated, getUserHomePath, login, logout, forgotPassword } = useAuth()
+  const { user, isAuthenticated, login, forgotPassword } = useAuth()
   const { showToast } = useAlert()
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Read portal from URL query parameter
-  const searchParams = new URLSearchParams(location.search)
-  const portalParam = searchParams.get('portal') || 'citizen'
-  const [activePortal, setActivePortal] = useState(
-    ['citizen', 'admin', 'rescue'].includes(portalParam) ? portalParam : 'citizen'
-  )
-
-  // Auto-redirect ONLY if the requested portal matches user's current role
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      const requestedPortal = searchParams.get('portal')
-      // If user is already in the matching role, send them directly to their portal
-      if (!requestedPortal && user.role) {
-        const dest = user.role === 'admin' ? '/admin' : user.role === 'rescue' ? '/rescue' : '/dashboard'
-        navigate(dest, { replace: true })
-      } else if (requestedPortal && requestedPortal === user.role) {
-        const dest = user.role === 'admin' ? '/admin' : user.role === 'rescue' ? '/rescue' : '/dashboard'
-        navigate(dest, { replace: true })
-      }
-    }
-  }, [isAuthenticated, user, navigate, location.search])
-
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
-  // Forgot password state
+  // Forgot password modal state
   const [showForgotModal, setShowForgotModal] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotLoading, setForgotLoading] = useState(false)
@@ -64,46 +40,63 @@ export default function Login() {
   const [generatedPassword, setGeneratedPassword] = useState('')
   const [copied, setCopied] = useState(false)
 
+  // Redirect if already authenticated
   useEffect(() => {
-    const current = searchParams.get('portal')
-    if (current && ['citizen', 'admin', 'rescue'].includes(current)) {
-      setActivePortal(current)
+    if (isAuthenticated && user?.role) {
+      const fromPath = location.state?.from?.pathname
+      if (fromPath && fromPath !== '/login') {
+        navigate(fromPath, { replace: true })
+      } else {
+        const userRole = String(user.role).toLowerCase()
+        const dest = userRole === 'admin' ? '/admin' : userRole === 'rescue' ? '/rescue' : '/dashboard'
+        navigate(dest, { replace: true })
+      }
     }
-  }, [location.search])
-
-  const handlePortalSwitch = (portalKey) => {
-    setActivePortal(portalKey)
-    setErrorMessage('')
-    setShowForgotModal(false)
-    navigate(`/login?portal=${portalKey}`)
-  }
+  }, [isAuthenticated, user?.role, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setErrorMessage('')
-    setLoading(true)
 
+    if (!email.trim() || !password) {
+      setErrorMessage('Please enter both your email address and password.')
+      return
+    }
+
+    setLoading(true)
     const res = await login({
       email: email.trim(),
       password,
-      portal: activePortal,
-      role: activePortal,
     })
     setLoading(false)
 
     if (res.ok) {
+      const userRole = (res.user?.role || 'citizen').toLowerCase()
       showToast({
-        title: 'Authentication Successful',
-        message: 'Signed into Jal Rakshak.',
+        title: 'Sign In Successful',
+        message: `Welcome back, ${res.user?.fullName || res.user?.name || 'User'}!`,
         type: 'success',
       })
-      const userRole = res.user?.role || activePortal
-      if (userRole === 'admin') navigate('/admin')
-      else if (userRole === 'rescue') navigate('/rescue')
-      else navigate('/dashboard')
+
+      const fromPath = location.state?.from?.pathname
+      if (fromPath) {
+        navigate(fromPath, { replace: true })
+      } else if (userRole === 'admin') {
+        navigate('/admin', { replace: true })
+      } else if (userRole === 'rescue') {
+        navigate('/rescue', { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
+      }
     } else {
-      setErrorMessage(res.error || 'Invalid credentials or unauthorized for this portal.')
+      setErrorMessage(res.error || 'Invalid credentials. Please verify your email and password.')
     }
+  }
+
+  const handleFillDemo = (demo) => {
+    setEmail(demo.email)
+    setPassword(demo.pass)
+    setErrorMessage('')
   }
 
   const openForgotPassword = () => {
@@ -119,14 +112,13 @@ export default function Login() {
     e.preventDefault()
     setForgotError('')
     if (!forgotEmail.trim()) {
-      setForgotError('Please enter your registered citizen email address.')
+      setForgotError('Please enter your registered email address.')
       return
     }
 
     setForgotLoading(true)
     const res = await forgotPassword({
       email: forgotEmail.trim(),
-      portal: 'citizen',
     })
     setForgotLoading(false)
 
@@ -136,12 +128,12 @@ export default function Login() {
         setGeneratedPassword(res.data.newPasswordPreview)
       }
       showToast({
-        title: 'New Password Sent',
-        message: 'A new password has been enabled and sent to your email address.',
+        title: 'Password Reset Initiated',
+        message: 'A temporary access password has been created and sent to your email.',
         type: 'success',
       })
     } else {
-      setForgotError(res.error || 'Failed to send new password. Please check your email address.')
+      setForgotError(res.error || 'Failed to send password reset. Please check your email.')
     }
   }
 
@@ -161,362 +153,234 @@ export default function Login() {
     }
   }
 
-  const isCrossPortal = isAuthenticated && user && user.role !== activePortal
-
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 bg-slate-50 relative">
-      <div className="max-w-md w-full bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl relative z-10">
-        {/* Portal Selector Tabs */}
-        <div className="flex rounded-2xl bg-slate-100 p-1 mb-6 border border-slate-200/80">
-          <button
-            type="button"
-            onClick={() => handlePortalSwitch('citizen')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-              activePortal === 'citizen'
-                ? 'bg-white text-brand-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>Citizen</span>
-          </button>
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 bg-gradient-to-b from-slate-50 via-slate-100 to-sky-50/40 relative">
+      {/* Background Ambience Glow */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none" />
 
-          <button
-            type="button"
-            onClick={() => handlePortalSwitch('admin')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-              activePortal === 'admin'
-                ? 'bg-white text-purple-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5" />
-            <span>Admin Command</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handlePortalSwitch('rescue')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-              activePortal === 'rescue'
-                ? 'bg-white text-emerald-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <LifeBuoy className="w-3.5 h-3.5" />
-            <span>Rescue Unit</span>
-          </button>
-        </div>
-
-        {/* Cross Portal Active Account Banner */}
-        {isCrossPortal && (
-          <div className="mb-4 p-3 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 text-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-bold flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Currently Signed In</span>
-              </span>
-              <span className="font-mono text-[10px] uppercase bg-amber-200/80 px-2 py-0.5 rounded font-bold">
-                {user.role} Account
-              </span>
-            </div>
-            <p className="text-[11px] text-amber-800">
-              You are logged in as <strong className="text-slate-900">{user.email}</strong>. To access the <strong className="uppercase">{activePortal}</strong> portal, please sign in with your authorized credentials below.
+      <div className="max-w-md w-full bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl relative z-10 space-y-6">
+        {/* Brand Header */}
+        <div className="flex flex-col items-center text-center space-y-2">
+          <Link to="/" className="transition hover:scale-105">
+            <JalRakshakLogo variant="stacked" size="lg" />
+          </Link>
+          <div className="pt-2">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              Sign In to Your Account
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              Enter your credentials to access flood intelligence and emergency response tools.
             </p>
-            <div className="pt-1 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  logout()
-                  setEmail('')
-                  setPassword('')
-                }}
-                className="text-[11px] font-bold text-red-600 hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <LogOut className="w-3 h-3" />
-                <span>Sign Out Current User</span>
-              </button>
-              <span className="text-slate-300">•</span>
-              <Link
-                to={user.role === 'admin' ? '/admin' : user.role === 'rescue' ? '/rescue' : '/dashboard'}
-                className="text-[11px] font-bold text-brand-700 hover:underline"
-              >
-                Return to {user.role.toUpperCase()} Home &rarr;
-              </Link>
-            </div>
           </div>
-        )}
-
-        {/* Portal-Specific Header */}
-        <div className="text-center mb-6">
-          <div className="flex justify-center mb-3">
-            {activePortal === 'citizen' ? (
-              <JalRakshakLogo variant="icon" size="lg" />
-            ) : (
-              <div
-                className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-md ${
-                  activePortal === 'admin'
-                    ? 'bg-gradient-to-tr from-purple-700 to-indigo-600'
-                    : 'bg-gradient-to-tr from-emerald-700 to-teal-500'
-                }`}
-              >
-                {activePortal === 'admin' ? (
-                  <Shield className="w-7 h-7" />
-                ) : (
-                  <LifeBuoy className="w-7 h-7" />
-                )}
-              </div>
-            )}
-          </div>
-
-          <h2 className="text-2xl font-extrabold text-slate-900">
-            {activePortal === 'admin'
-              ? 'Admin Command Login'
-              : activePortal === 'rescue'
-              ? 'Rescue Field Unit Login'
-              : 'Citizen Portal Login'}
-          </h2>
-
-          <p className="text-xs text-slate-500 mt-1">
-            {activePortal === 'admin'
-              ? 'Official administrator credentials required'
-              : activePortal === 'rescue'
-              ? 'Authorized emergency rescue personnel only'
-              : 'Sign in to access localized flood intelligence & response alerts'}
-          </p>
         </div>
 
-        {/* Official Banner for Admin / Rescue */}
-        {activePortal === 'admin' && (
-          <div className="mb-4 p-2.5 bg-purple-50 rounded-xl border border-purple-200 text-purple-800 text-[11px] font-semibold flex items-center gap-2">
-            <Radio className="w-4 h-4 text-purple-600 shrink-0" />
-            <span>Official Administrator Credentials Only. Public access restricted.</span>
-          </div>
-        )}
-
-        {activePortal === 'rescue' && (
-          <div className="mb-4 p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-800 text-[11px] font-semibold flex items-center gap-2">
-            <Radio className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Authorized NDRF / SDRF / ODRAF Field Personnel Only.</span>
-          </div>
-        )}
-
-        {/* Error Banner */}
+        {/* Error Alert */}
         {errorMessage && (
-          <div className="mb-4 p-3 bg-red-50 rounded-xl border border-red-200 text-red-700 text-xs font-semibold flex items-start gap-2 animate-in fade-in duration-200">
-            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-            <div className="flex-1">{errorMessage}</div>
+          <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5 animate-in fade-in">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+            <div className="flex-1 font-medium">{errorMessage}</div>
           </div>
         )}
 
-        {/* Credentials Form */}
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        {/* Main Login Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Email Input */}
           <div>
-            <label className="font-bold text-slate-700 block mb-1">
-              {activePortal === 'rescue'
-                ? 'Official Rescue Email'
-                : activePortal === 'admin'
-                ? 'Official Admin Email'
-                : 'Email Address'}
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Email Address
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="email"
+                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={
-                  activePortal === 'rescue'
-                    ? 'officer@ndrf.gov.in'
-                    : activePortal === 'admin'
-                    ? 'admin@disaster.gov.in'
-                    : 'name@example.com'
-                }
-                required
-                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 outline-none text-xs"
+                placeholder="name@example.com"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs sm:text-sm outline-none focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition"
               />
             </div>
           </div>
 
+          {/* Password Input */}
           <div>
-            <label className="font-bold text-slate-700 block mb-1">Password</label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-                className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 outline-none text-xs"
-              />
-            </div>
-          </div>
-
-          {/* Forgot Password Link - Only for Citizen */}
-          {activePortal === 'citizen' && (
-            <div className="text-right">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                Password
+              </label>
               <button
                 type="button"
                 onClick={openForgotPassword}
-                className="text-[11px] text-slate-500 hover:text-brand-600 font-semibold cursor-pointer transition"
+                className="text-[11px] font-semibold text-cyan-600 hover:text-cyan-700 transition cursor-pointer"
               >
-                Forgot Password?
+                Forgot password?
               </button>
             </div>
-          )}
+            <div className="relative">
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your account password"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-xs sm:text-sm outline-none focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
 
+          {/* Remember Me */}
+          <div className="flex items-center justify-between pt-1 text-xs">
+            <label className="flex items-center gap-2 text-slate-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 w-3.5 h-3.5"
+              />
+              <span>Remember this device</span>
+            </label>
+          </div>
+
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-3 rounded-xl text-white font-bold text-xs shadow-lg transition flex items-center justify-center gap-2 cursor-pointer ${
-              activePortal === 'admin'
-                ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/30'
-                : activePortal === 'rescue'
-                ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30'
-                : 'bg-brand-600 hover:bg-brand-700 shadow-brand-600/30'
-            }`}
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-600 via-brand-600 to-blue-700 hover:from-cyan-700 hover:to-blue-800 text-white font-bold text-xs sm:text-sm transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
           >
-            <span>
-              {loading
-                ? 'Authenticating...'
-                : activePortal === 'admin'
-                ? 'Login to Admin Command'
-                : activePortal === 'rescue'
-                ? 'Login to Rescue Unit'
-                : 'Login to Citizen Portal'}
-            </span>
-            <ArrowRight className="w-4 h-4" />
+            {loading ? (
+              <>
+                <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                <span>Verifying Credentials...</span>
+              </>
+            ) : (
+              <>
+                <span>Sign In to Jal Rakshak</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </form>
 
-        {/* Public Citizen Registration Link */}
-        {activePortal === 'citizen' && (
-          <div className="mt-6 pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
-            New to Jal Rakshak?{' '}
-            <Link to="/register" className="font-bold text-brand-600 hover:underline">
-              Create Citizen Account
-            </Link>
-          </div>
-        )}
+        {/* Register Link */}
+        <div className="text-center text-xs text-slate-500 pt-2">
+          Don't have an account yet?{' '}
+          <Link
+            to="/register"
+            className="font-bold text-cyan-600 hover:text-cyan-700 underline underline-offset-2"
+          >
+            Register as Citizen
+          </Link>
+        </div>
       </div>
 
-      {/* Forgot Password Modal for Citizen */}
+      {/* Forgot Password Modal */}
       {showForgotModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="max-w-md w-full bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-2xl relative animate-in zoom-in-95 duration-200">
-            {!forgotSuccess ? (
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center mb-4 mx-auto shadow-xs">
-                  <KeyRound className="w-6 h-6" />
-                </div>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 border border-slate-200 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-cyan-600" />
+                <span>Reset Account Password</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowForgotModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
 
-                <div className="text-center mb-5">
-                  <h3 className="text-xl font-extrabold text-slate-900">Forgot Password?</h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Enter your registered citizen email. We will generate and enable a new secure password, then send it directly to your email inbox.
-                  </p>
-                </div>
+            {!forgotSuccess ? (
+              <form onSubmit={handleForgotSubmit} className="space-y-3 text-xs">
+                <p className="text-slate-500 leading-relaxed">
+                  Enter your registered account email. We will generate and securely deliver a temporary password to your inbox.
+                </p>
 
                 {forgotError && (
-                  <div className="mb-4 p-3 bg-red-50 rounded-xl border border-red-200 text-red-700 text-xs font-semibold flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                    <div className="flex-1">{forgotError}</div>
+                  <div className="p-2.5 rounded-xl bg-red-50 text-red-700 font-medium">
+                    {forgotError}
                   </div>
                 )}
 
-                <form onSubmit={handleForgotSubmit} className="space-y-4 text-xs">
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">Registered Citizen Email</label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="email"
-                        value={forgotEmail}
-                        onChange={(e) => setForgotEmail(e.target.value)}
-                        placeholder="e.g. name@example.com"
-                        required
-                        autoFocus
-                        className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 outline-none text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-2 flex gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => setShowForgotModal(false)}
-                      className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={forgotLoading}
-                      className="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-lg shadow-brand-600/30 transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-70"
-                    >
-                      {forgotLoading ? (
-                        <span>Sending Mail...</span>
-                      ) : (
-                        <>
-                          <span>Send New Password</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="text-center">
-                <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mb-4 mx-auto shadow-xs">
-                  <CheckCircle2 className="w-8 h-8" />
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
                 </div>
 
-                <h3 className="text-xl font-extrabold text-slate-900">New Password Enabled!</h3>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  We have enabled a new secure password on your account and dispatched an email to{' '}
-                  <span className="font-bold text-slate-900">{forgotEmail}</span>.
-                </p>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotModal(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold disabled:opacity-60 flex items-center gap-1.5 shadow"
+                  >
+                    {forgotLoading ? 'Processing...' : 'Send Temporary Password'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-3 text-xs">
+                <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-800 space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Password Reset Initiated</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed">
+                    A temporary login password has been generated for <strong>{forgotEmail}</strong>.
+                  </p>
+                </div>
 
                 {generatedPassword && (
-                  <div className="mt-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-left">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-1.5">
-                      <span className="flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5 text-brand-600" />
-                        <span>Generated Password (Active Now)</span>
+                  <div className="p-3 bg-slate-900 text-white rounded-2xl space-y-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                      Temporary Access Password:
+                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-sm font-bold text-emerald-400">
+                        {generatedPassword}
                       </span>
                       <button
                         type="button"
                         onClick={handleCopyPassword}
-                        className="text-brand-600 hover:text-brand-700 flex items-center gap-1 cursor-pointer font-bold"
+                        className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] flex items-center gap-1 text-slate-300"
                       >
-                        {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                        <span>{copied ? 'Copied!' : 'Copy'}</span>
+                        {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>{copied ? 'Copied' : 'Copy'}</span>
                       </button>
-                    </div>
-                    <div className="font-mono text-sm font-bold text-brand-800 bg-white px-3 py-2 rounded-xl border border-slate-200 tracking-wider">
-                      {generatedPassword}
                     </div>
                   </div>
                 )}
 
-                <div className="mt-6 flex flex-col gap-2">
+                <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="button"
                     onClick={handleUseNewPassword}
-                    className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-lg shadow-brand-600/30 transition flex items-center justify-center gap-2 cursor-pointer"
+                    className="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold shadow"
                   >
-                    <span>Proceed to Sign In</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotModal(false)}
-                    className="w-full py-2 text-slate-500 hover:text-slate-800 font-semibold text-xs transition cursor-pointer"
-                  >
-                    Close
+                    Apply & Sign In
                   </button>
                 </div>
               </div>

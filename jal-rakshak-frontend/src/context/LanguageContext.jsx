@@ -17,11 +17,19 @@ export function LanguageProvider({ children }) {
     setLanguageState(langCode)
     i18n.changeLanguage(langCode)
     localStorage.setItem('jalrakshak_lang', langCode)
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = langCode
+      document.documentElement.setAttribute('data-lang', langCode)
+    }
   }
 
   useEffect(() => {
     if (i18n.language !== language) {
       i18n.changeLanguage(language)
+    }
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = language
+      document.documentElement.setAttribute('data-lang', language)
     }
   }, [language, i18n])
 
