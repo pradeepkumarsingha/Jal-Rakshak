@@ -212,6 +212,14 @@ Odisha State Emergency Operations Center`;
     </html>
   `;
 
+  return sendEmail({
+    to,
+    subject,
+    text,
+    html,
+  });
+};
+
 /**
  * Send Password Reset Link Email with Action Button
  */
