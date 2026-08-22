@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const cloudinary = require('../config/cloudinary');
 const logger = require('../utils/logger');
 
@@ -19,6 +21,24 @@ const isPlaceholderConfig = () => {
   );
 };
 
+const saveImageLocally = (buffer) => {
+  try {
+    const uploadsDir = path.resolve(__dirname, '../../public/uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const filename = `report_dev_${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
+    const filepath = path.join(uploadsDir, filename);
+    fs.writeFileSync(filepath, buffer);
+    const port = process.env.PORT || 5000;
+    return `http://localhost:${port}/uploads/${filename}`;
+  } catch (err) {
+    logger.error(`Failed to save image locally: ${err.message}`);
+    const base64 = buffer ? buffer.toString('base64') : '';
+    return `data:image/jpeg;base64,${base64}`;
+  }
+};
+
 /**
  * Upload image buffer to Cloudinary using upload_stream
  * @param {Buffer} buffer - In-memory image buffer
@@ -33,11 +53,10 @@ const uploadImageBuffer = (buffer, options = {}) => {
         'Cloudinary placeholder credentials detected in .env. Using mock Cloudinary storage adapter for local testing.'
       );
       const mockId = `jal-rakshak/reports/report_dev_${Date.now()}`;
-      const base64 = buffer ? buffer.toString('base64') : '';
-      const dataUri = `data:image/jpeg;base64,${base64}`;
+      const localUrl = saveImageLocally(buffer);
 
       return resolve({
-        secureUrl: dataUri.length < 50000 ? dataUri : 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=1200&q=80',
+        secureUrl: localUrl,
         publicId: mockId,
         width: 1280,
         height: 720,
@@ -69,8 +88,9 @@ const uploadImageBuffer = (buffer, options = {}) => {
           ) {
             logger.warn('Cloudinary signature failed (invalid credentials). Providing development fallback URL.');
             const mockId = `jal-rakshak/reports/report_fallback_${Date.now()}`;
+            const localUrl = saveImageLocally(buffer);
             return resolve({
-              secureUrl: 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=1200&q=80',
+              secureUrl: localUrl,
               publicId: mockId,
               width: 1280,
               height: 720,

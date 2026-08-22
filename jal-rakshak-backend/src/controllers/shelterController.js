@@ -4,67 +4,6 @@ const { ErrorResponse } = require('../middleware/errorHandler');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/helpers');
 const { calculateDistanceKm } = require('../services/geospatialService');
 
-const isDbReady = () => mongoose.connection.readyState === 1;
-
-const STATIC_SHELTERS = [
-  {
-    _id: 'SH-01',
-    shelterId: 'SH-01',
-    name: 'Barabati Multi-Purpose Cyclone & Flood Shelter',
-    locationName: 'Bidanasi, Cuttack',
-    address: 'Near Barabati Stadium Ring Road, Bidanasi, Cuttack',
-    district: 'Cuttack',
-    state: 'Odisha',
-    location: { type: 'Point', coordinates: [85.8654, 20.4812] },
-    totalCapacity: 1200,
-    currentOccupancy: 840,
-    status: 'ACTIVE',
-    riskLevel: 'LOW',
-    isRecommended: true,
-    contact: { person: 'Sub-Collector Cuttack', phone: '+91 671 2304921' },
-    facilities: ['Medical Aid Camp', 'Drinking Water Plant', '24/7 Diesel Generator', 'Community Kitchen'],
-    elevationMeters: 38,
-    roadCondition: 'Safe & Clear (Elevated Ring Road)',
-  },
-  {
-    _id: 'SH-02',
-    shelterId: 'SH-02',
-    name: 'Ravenshaw University Relief Shelter Complex',
-    locationName: 'College Square, Cuttack',
-    address: 'Ravenshaw University Campus, College Square, Cuttack',
-    district: 'Cuttack',
-    state: 'Odisha',
-    location: { type: 'Point', coordinates: [85.8942, 20.4638] },
-    totalCapacity: 2500,
-    currentOccupancy: 1980,
-    status: 'ACTIVE',
-    riskLevel: 'LOW',
-    isRecommended: true,
-    contact: { person: 'Prof. S. Tripathy (Nodal Officer)', phone: '+91 671 2201987' },
-    facilities: ['Field Hospital', 'Helipad Access', 'Clean Water', 'Food Packets', 'Power Backup'],
-    elevationMeters: 41,
-    roadCondition: 'Passable via Badambadi Overbridge',
-  },
-  {
-    _id: 'SH-04',
-    shelterId: 'SH-04',
-    name: 'Bhubaneswar KIIT Disaster Relief Center',
-    locationName: 'Patia, Bhubaneswar',
-    address: 'KIIT Campus 6, Patia, Bhubaneswar',
-    district: 'Khordha',
-    state: 'Odisha',
-    location: { type: 'Point', coordinates: [85.8192, 20.3541] },
-    totalCapacity: 3500,
-    currentOccupancy: 1120,
-    status: 'ACTIVE',
-    riskLevel: 'LOW',
-    isRecommended: true,
-    contact: { person: 'Relief Coordinator KIIT', phone: '+91 674 2725113' },
-    facilities: ['State-of-art Medical Ward', 'Ambulance Station', 'Hot Meals', 'Sanitation Kits'],
-    elevationMeters: 55,
-    roadCondition: 'All NH16 High-Speed Routes Open',
-  },
-];
 
 /**
  * @desc    Get all shelters with filtering
@@ -75,30 +14,25 @@ const getAllShelters = async (req, res, next) => {
   try {
     const { district, status, facility, search } = req.query;
 
-    let shelters = [];
-    if (isDbReady()) {
-      const query = {};
-      if (district) query.district = new RegExp(district, 'i');
-      if (status) query.status = status.toUpperCase();
-      if (facility) query.facilities = { $in: [new RegExp(facility, 'i')] };
-      if (search) {
-        query.$or = [
-          { name: new RegExp(search, 'i') },
-          { address: new RegExp(search, 'i') },
-          { district: new RegExp(search, 'i') },
-        ];
-      }
-      shelters = await Shelter.find(query).sort({ totalCapacity: -1 });
-    } else {
-      shelters = STATIC_SHELTERS;
+    const query = {};
+    if (district) query.district = new RegExp(district, 'i');
+    if (status) query.status = status.toUpperCase();
+    if (facility) query.facilities = { $in: [new RegExp(facility, 'i')] };
+    if (search) {
+      query.$or = [
+        { name: new RegExp(search, 'i') },
+        { address: new RegExp(search, 'i') },
+        { district: new RegExp(search, 'i') },
+      ];
     }
+    const shelters = await Shelter.find(query).sort({ totalCapacity: -1 });
 
     // If user provided coordinates, enrich with distanceKm and sort
     const userLat = Number(req.query.lat || req.query.latitude);
     const userLng = Number(req.query.lng || req.query.longitude);
 
     let enrichedShelters = shelters.map((s) => {
-      const sObj = s.toObject();
+      const sObj = typeof s.toObject === 'function' ? s.toObject() : { ...s };
       if (!isNaN(userLat) && !isNaN(userLng) && s.location && s.location.coordinates) {
         const [lng, lat] = s.location.coordinates;
         sObj.distanceKm = calculateDistanceKm(userLat, userLng, lat, lng);
@@ -134,25 +68,20 @@ const getNearbyShelters = async (req, res, next) => {
     const maxDistanceMeters = Number(req.query.radius || 50000); // 50km default
 
     let shelters = [];
-
-    if (isDbReady()) {
-      try {
-        shelters = await Shelter.find({
-          location: {
-            $nearSphere: {
-              $geometry: {
-                type: 'Point',
-                coordinates: [lng, lat],
-              },
-              $maxDistance: maxDistanceMeters,
+    try {
+      shelters = await Shelter.find({
+        location: {
+          $nearSphere: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [lng, lat],
             },
+            $maxDistance: maxDistanceMeters,
           },
-        });
-      } catch (geoErr) {
-        shelters = await Shelter.find();
-      }
-    } else {
-      shelters = STATIC_SHELTERS;
+        },
+      });
+    } catch (geoErr) {
+      shelters = await Shelter.find();
     }
 
     const formatted = shelters.map((s) => {

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import api from '../services/api'
+import { updateSocketAuth } from '../services/socket'
 
 const AuthContext = createContext(null)
 
@@ -67,6 +68,7 @@ export function AuthProvider({ children }) {
       if (receivedToken) {
         setToken(receivedToken)
         localStorage.setItem('jalrakshak_token', receivedToken)
+        updateSocketAuth(receivedToken)
       }
       if (userData) {
         setUser(userData)
@@ -99,6 +101,7 @@ export function AuthProvider({ children }) {
         }
         setUser(simulatedUser)
         setToken('offline-token')
+        updateSocketAuth('offline-token')
         return { ok: true, user: simulatedUser, token: 'offline-token' }
       }
 
@@ -125,6 +128,7 @@ export function AuthProvider({ children }) {
       if (receivedToken) {
         setToken(receivedToken)
         localStorage.setItem('jalrakshak_token', receivedToken)
+        updateSocketAuth(receivedToken)
       }
       if (createdUser) {
         setUser(createdUser)
@@ -149,6 +153,7 @@ export function AuthProvider({ children }) {
         }
         setUser(simulatedUser)
         setToken('offline-token')
+        updateSocketAuth('offline-token')
         return { ok: true, user: simulatedUser }
       }
 
@@ -175,6 +180,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('jalrakshak_token')
     localStorage.removeItem('jalrakshak_refresh_token')
     localStorage.removeItem('jalrakshak_user')
+    updateSocketAuth(null)
   }
 
   const forgotPassword = async ({ email, portal = 'citizen' }) => {

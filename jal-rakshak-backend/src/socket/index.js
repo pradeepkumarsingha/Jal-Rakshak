@@ -150,6 +150,7 @@ const notifyReportUpdated = (report) => {
     verificationStatus: report.verificationStatus,
     verification: report.verification,
     aiAnalysis: report.aiAnalysis,
+    image: report.image,
     updatedAt: report.updatedAt,
   };
   io.to('admin').emit('report:updated', adminSummary);
@@ -158,13 +159,14 @@ const notifyReportUpdated = (report) => {
     const citizenSafe = {
       reportId: report._id,
       verificationStatus: report.verificationStatus,
+      image: report.image,
       updatedAt: report.updatedAt,
       notice:
         report.verificationStatus === 'VERIFIED'
           ? 'Your report has been verified by emergency coordinators.'
           : report.verificationStatus === 'REJECTED'
-          ? 'Your report was reviewed and marked unverified.'
-          : 'Your report has been escalated for priority dispatch review.',
+            ? 'Your report was reviewed and marked unverified.'
+            : 'Your report has been escalated for priority dispatch review.',
     };
     io.to(`citizen:${report.user}`).emit('report:updated', citizenSafe);
   }

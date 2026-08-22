@@ -8,70 +8,6 @@ const { verifyRefreshToken, generateToken, generateRefreshToken } = require('../
 const { sendNewPasswordEmail, sendResetPasswordEmail } = require('../services/emailService');
 const logger = require('../utils/logger');
 
-const isDbReady = () => mongoose.connection.readyState === 1;
-
-// Demo accounts dictionary for development/fallback
-const DEMO_USERS = {
-  'citizen@demo.jalrakshak.org': {
-    fullName: 'Ramesh Mohanty',
-    role: 'citizen',
-    phone: '+91 98765 43210',
-    district: 'Cuttack',
-    state: 'Odisha',
-    password: 'Citizen@123',
-    location: { type: 'Point', coordinates: [85.8830, 20.4625], address: 'Cuttack, Odisha' },
-  },
-  'admin@demo.jalrakshak.org': {
-    fullName: 'Dr. Anita Sharma (IAS)',
-    role: 'admin',
-    phone: '+91 674 2534100',
-    district: 'State Disaster Ops Center',
-    designation: 'Special Relief Commissioner (SRC)',
-    state: 'Odisha',
-    password: 'Admin@123',
-    location: { type: 'Point', coordinates: [85.8245, 20.2961], address: 'State Disaster Ops Center, Bhubaneswar' },
-  },
-  'rescue@demo.jalrakshak.org': {
-    fullName: 'Cmdr. Vikram Rathore',
-    role: 'rescue',
-    unitId: 'NDRF-BN-03',
-    phone: '+91 98110 54321',
-    battalion: '03rd NDRF Battalion, Mundali',
-    state: 'Odisha',
-    password: 'Rescue@123',
-    location: { type: 'Point', coordinates: [85.8900, 20.4700], address: 'Mundali Camp, Cuttack' },
-  },
-  // Backward compatibility demo users
-  'ramesh.citizen@jalrakshak.org': {
-    fullName: 'Ramesh Mohanty',
-    role: 'citizen',
-    phone: '+91 98612 34567',
-    district: 'Cuttack',
-    state: 'Odisha',
-    password: 'password123',
-    location: { type: 'Point', coordinates: [85.8830, 20.4625], address: 'Cuttack, Odisha' },
-  },
-  'anita.src@odisha.gov.in': {
-    fullName: 'Dr. Anita Sharma (IAS)',
-    role: 'admin',
-    phone: '+91 674 2534100',
-    district: 'State Disaster Ops Center',
-    designation: 'Special Relief Commissioner (SRC)',
-    state: 'Odisha',
-    password: 'password123',
-    location: { type: 'Point', coordinates: [85.8245, 20.2961], address: 'Bhubaneswar' },
-  },
-  'vikram.ndrf@gov.in': {
-    fullName: 'Cmdr. Vikram Rathore',
-    role: 'rescue',
-    unitId: 'TEAM-NDRF-07',
-    phone: '+91 98110 54321',
-    battalion: '03rd NDRF Battalion, Mundali',
-    state: 'Odisha',
-    password: 'password123',
-    location: { type: 'Point', coordinates: [85.8900, 20.4700], address: 'Mundali' },
-  },
-};
 
 /**
  * Validate that the user role is authorized for the selected portal
@@ -121,33 +57,6 @@ const register = async (req, res, next) => {
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Please provide fullName, email, and password',
-        },
-      });
-    }
-
-    // If database is offline, immediately return a valid registration session
-    if (!isDbReady()) {
-      logger.info('Database offline. Registering citizen profile in memory.');
-      const simulatedUser = {
-        _id: 'USR-' + Date.now().toString(36),
-        id: 'USR-' + Date.now().toString(36),
-        fullName: resolvedName,
-        email: email.toLowerCase(),
-        role: 'citizen',
-        phone: phone || '+91 98610 12345',
-        district: district || 'Cuttack',
-        state: state || 'Odisha',
-        location: { type: 'Point', coordinates: [85.8830, 20.4625], address: `${district || 'Cuttack'}, Odisha` },
-      };
-      const token = generateToken({ id: simulatedUser.id, role: 'citizen', email: simulatedUser.email });
-      return res.status(201).json({
-        success: true,
-        message: 'Citizen registered successfully',
-        data: {
-          user: simulatedUser,
-          accessToken: token,
-          refreshToken: token,
-          token: token,
         },
       });
     }
@@ -231,35 +140,6 @@ const register = async (req, res, next) => {
       },
     });
   } catch (error) {
-    if (
-      error.name === 'MongooseServerSelectionError' ||
-      error.name === 'MongooseError' ||
-      error.name === 'MongoServerSelectionError' ||
-      error.message?.includes('buffering timed out') ||
-      error.message?.includes('timed out after')
-    ) {
-      logger.warn('MongoDB offline during register. Providing local registration token.');
-      const simulatedUser = {
-        id: 'USR-' + Date.now().toString(36),
-        fullName: req.body.fullName || req.body.name || 'Citizen User',
-        email: req.body.email?.toLowerCase(),
-        role: 'citizen',
-        phone: req.body.phone,
-        district: req.body.district || 'Cuttack',
-        state: req.body.state || 'Odisha',
-      };
-      const token = generateToken({ id: simulatedUser.id, role: simulatedUser.role, email: simulatedUser.email });
-      return res.status(201).json({
-        success: true,
-        message: 'Citizen registered successfully',
-        data: {
-          user: simulatedUser,
-          accessToken: token,
-          refreshToken: token,
-          token: token,
-        },
-      });
-    }
     next(error);
   }
 };
@@ -285,113 +165,8 @@ const login = async (req, res, next) => {
 
     const requestedPortal = portal || role;
 
-    // If database is offline, immediately resolve login
-    if (!isDbReady()) {
-      logger.info('Database offline. Resolving login locally.');
-      const demoData = DEMO_USERS[email.toLowerCase()] || {
-        fullName: email.split('@')[0],
-        role: requestedPortal || 'citizen',
-        district: 'Cuttack',
-        state: 'Odisha',
-      };
-
-      if (requestedPortal) {
-        const portalCheck = validatePortalRole(demoData.role, requestedPortal);
-        if (!portalCheck.valid) {
-          return res.status(403).json({
-            success: false,
-            error: {
-              code: portalCheck.code,
-              message: portalCheck.message,
-            },
-          });
-        }
-      }
-
-      const simulatedUser = {
-        _id: 'USR-' + Date.now().toString(36),
-        id: 'USR-' + Date.now().toString(36),
-        fullName: demoData.fullName,
-        email: email.toLowerCase(),
-        role: demoData.role,
-        district: demoData.district,
-        state: demoData.state,
-      };
-      const token = generateToken({ id: simulatedUser.id, role: simulatedUser.role, email: simulatedUser.email });
-      return res.status(200).json({
-        success: true,
-        message: 'Login successful',
-        data: {
-          user: simulatedUser,
-          accessToken: token,
-          refreshToken: token,
-          token: token,
-        },
-      });
-    }
-
     // Look up user in DB
-    let user = null;
-    try {
-      user = await User.findOne({ email: email.toLowerCase() }).select('+password');
-    } catch (dbErr) {
-      logger.warn(`Database query failed during login (${dbErr.message}). Using local auth resolver.`);
-    }
-
-    // If not found in DB, check demo accounts for quick auto-provisioning
-    if (!user && DEMO_USERS[email.toLowerCase()]) {
-      const demoData = DEMO_USERS[email.toLowerCase()];
-      
-      // Check demo password match
-      if (
-        password === demoData.password ||
-        password === 'demo123456' ||
-        password === 'password' ||
-        password === 'Citizen@123' ||
-        password === 'Admin@123' ||
-        password === 'Rescue@123' ||
-        password === 'password123'
-      ) {
-        try {
-          user = await User.create({
-            fullName: demoData.fullName,
-            email: email.toLowerCase(),
-            password: demoData.password || 'Citizen@123',
-            role: demoData.role,
-            phone: demoData.phone,
-            district: demoData.district,
-            state: demoData.state,
-            designation: demoData.designation,
-            unitId: demoData.unitId,
-            battalion: demoData.battalion,
-            location: demoData.location,
-            isVerified: true,
-            isActive: true,
-            lastLoginAt: new Date(),
-          });
-        } catch (createErr) {
-          // If DB creation fails (e.g. offline DB), construct in-memory user object
-          user = {
-            _id: 'USR-' + Date.now().toString(36),
-            id: 'USR-' + Date.now().toString(36),
-            fullName: demoData.fullName,
-            email: email.toLowerCase(),
-            role: demoData.role,
-            phone: demoData.phone,
-            district: demoData.district,
-            state: demoData.state,
-            designation: demoData.designation,
-            unitId: demoData.unitId,
-            location: demoData.location,
-            matchPassword: async () => true,
-            getSignedJwtToken: () => generateToken({ id: 'USR-01', role: demoData.role, email: email.toLowerCase() }),
-            getSignedRefreshToken: () => generateRefreshToken({ id: 'USR-01' }),
-            save: async () => {},
-          };
-        }
-      }
-    }
-
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -403,16 +178,8 @@ const login = async (req, res, next) => {
     }
 
     // Verify password
-    const isMatch = typeof user.matchPassword === 'function' ? await user.matchPassword(password) : true;
-    const isDemoPassword =
-      password === 'Citizen@123' ||
-      password === 'Admin@123' ||
-      password === 'Rescue@123' ||
-      password === 'password123' ||
-      password === 'demo123456' ||
-      password === 'password';
-
-    if (!isMatch && !isDemoPassword) {
+    const isMatch = typeof user.matchPassword === 'function' ? await user.matchPassword(password) : false;
+    if (!isMatch) {
       return res.status(401).json({
         success: false,
         error: {
@@ -488,40 +255,6 @@ const login = async (req, res, next) => {
       },
     });
   } catch (error) {
-    if (
-      error.name === 'MongooseServerSelectionError' ||
-      error.name === 'MongooseError' ||
-      error.name === 'MongoServerSelectionError' ||
-      error.message?.includes('buffering timed out') ||
-      error.message?.includes('timed out after')
-    ) {
-      logger.warn('MongoDB offline during login. Authenticating with fallback credentials.');
-      const demoData = DEMO_USERS[req.body.email?.toLowerCase()] || {
-        fullName: req.body.email?.split('@')[0] || 'User',
-        role: req.body.portal || req.body.role || 'citizen',
-        district: 'Cuttack',
-        state: 'Odisha',
-      };
-      const simulatedUser = {
-        id: 'USR-' + Date.now().toString(36),
-        fullName: demoData.fullName,
-        email: req.body.email?.toLowerCase(),
-        role: demoData.role,
-        district: demoData.district,
-        state: demoData.state,
-      };
-      const token = generateToken({ id: simulatedUser.id, role: simulatedUser.role, email: simulatedUser.email });
-      return res.status(200).json({
-        success: true,
-        message: 'Signed in successfully',
-        data: {
-          user: simulatedUser,
-          accessToken: token,
-          refreshToken: token,
-          token: token,
-        },
-      });
-    }
     next(error);
   }
 };
@@ -707,9 +440,6 @@ const generateRandomPassword = () => {
   return password;
 };
 
-// In-memory token store for offline/demo fallback
-const MEMORY_RESET_TOKENS = new Map();
-
 /**
  * @desc    Forgot Password - Sends a secure password reset link to user's registered email
  * @route   POST /api/v1/auth/forgot-password
@@ -732,91 +462,9 @@ const forgotPassword = async (req, res, next) => {
     const normalizedEmail = email.toLowerCase().trim();
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
-    // If database is offline, simulate reset link dispatch
-    if (!isDbReady()) {
-      logger.info(`Database offline. Generating memory reset token for ${normalizedEmail}.`);
-      const resetToken = crypto.randomBytes(32).toString('hex');
-      const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-      
-      MEMORY_RESET_TOKENS.set(hashedToken, {
-        email: normalizedEmail,
-        expires: Date.now() + 30 * 60 * 1000,
-      });
-
-      const demoUser = DEMO_USERS[normalizedEmail] || {
-        fullName: normalizedEmail.split('@')[0].replace(/[._-]/g, ' '),
-        email: normalizedEmail,
-      };
-
-      const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`;
-
-      await sendResetPasswordEmail({
-        to: normalizedEmail,
-        name: demoUser.fullName,
-        resetUrl,
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: 'A secure password reset link has been dispatched to your email address.',
-        data: {
-          email: normalizedEmail,
-        },
-      });
-    }
-
     // Look up user in DB (case-insensitive regex for robustness)
     const escapedEmail = normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    let user = await User.findOne({ email: { $regex: new RegExp(`^${escapedEmail}$`, 'i') } });
-
-    // If not found in DB but exists in DEMO_USERS, auto-provision
-    if (!user && DEMO_USERS[normalizedEmail]) {
-      const demoData = DEMO_USERS[normalizedEmail];
-      try {
-        user = await User.create({
-          fullName: demoData.fullName,
-          email: normalizedEmail,
-          password: demoData.password || 'Citizen@123',
-          role: demoData.role || 'citizen',
-          phone: demoData.phone || '+91 98610 12345',
-          district: demoData.district || 'Cuttack',
-          state: demoData.state || 'Odisha',
-          location: demoData.location || { type: 'Point', coordinates: [85.8830, 20.4625], address: 'Cuttack, Odisha' },
-          isVerified: true,
-          isActive: true,
-        });
-      } catch (e) {
-        // Continue with memory fallback if DB write fails
-      }
-    }
-
-    // If still not found and portal is citizen (or unspecified), auto-provision citizen profile
-    if (!user && (!portal || portal === 'citizen')) {
-      const namePart = normalizedEmail.split('@')[0].replace(/[._-]/g, ' ');
-      const formattedName = namePart
-        .split(' ')
-        .filter(Boolean)
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ') || 'Citizen User';
-
-      try {
-        user = await User.create({
-          fullName: formattedName,
-          email: normalizedEmail,
-          password: 'Temporary@123', // Will be reset via link
-          role: 'citizen',
-          phone: '+91 98610 12345',
-          district: 'Cuttack',
-          state: 'Odisha',
-          location: { type: 'Point', coordinates: [85.8830, 20.4625], address: 'Cuttack, Odisha' },
-          isVerified: true,
-          isActive: true,
-        });
-        logger.info(`Auto-provisioned citizen account for ${normalizedEmail}.`);
-      } catch (provisionErr) {
-        logger.warn(`Could not auto-provision citizen in DB: ${provisionErr.message}`);
-      }
-    }
+    const user = await User.findOne({ email: { $regex: new RegExp(`^${escapedEmail}$`, 'i') } });
 
     if (!user) {
       return res.status(404).json({
@@ -907,23 +555,6 @@ const resetPassword = async (req, res, next) => {
     // Hash the raw token to match database record
     const hashedToken = crypto.createHash('sha256').update(rawToken.trim()).digest('hex');
 
-    // Check memory store if database is offline
-    if (!isDbReady() || MEMORY_RESET_TOKENS.has(hashedToken)) {
-      const memoryEntry = MEMORY_RESET_TOKENS.get(hashedToken);
-      if (memoryEntry && memoryEntry.expires > Date.now()) {
-        const userEmail = memoryEntry.email;
-        if (DEMO_USERS[userEmail]) {
-          DEMO_USERS[userEmail].password = password;
-        }
-        MEMORY_RESET_TOKENS.delete(hashedToken);
-
-        return res.status(200).json({
-          success: true,
-          message: 'Your password has been successfully reset. You can now log in.',
-        });
-      }
-    }
-
     // Look up user with matching unexpired token
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
@@ -945,11 +576,6 @@ const resetPassword = async (req, res, next) => {
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
     await user.save();
-
-    // Keep demo accounts in sync if applicable
-    if (user.email && DEMO_USERS[user.email.toLowerCase()]) {
-      DEMO_USERS[user.email.toLowerCase()].password = password;
-    }
 
     logger.info(`Password successfully reset for user: ${user.email}`);
 

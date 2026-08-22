@@ -93,9 +93,17 @@ export default function Login() {
     }
   }
 
-  const handleFillDemo = (demo) => {
-    setEmail(demo.email)
-    setPassword(demo.pass)
+  const handleFillDemo = (role) => {
+    if (role === 'citizen') {
+      setEmail('ramesh.citizen@jalrakshak.org')
+      setPassword('password123')
+    } else if (role === 'rescue') {
+      setEmail('vikram.ndrf@gov.in')
+      setPassword('password123')
+    } else if (role === 'admin') {
+      setEmail('anita.src@odisha.gov.in')
+      setPassword('password123')
+    }
     setErrorMessage('')
   }
 
@@ -248,7 +256,7 @@ export default function Login() {
         <div className="mt-6 pt-5 border-t border-slate-100">
           <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Instant Demo Accounts</span>
+            <span>Instant Database Accounts</span>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <button

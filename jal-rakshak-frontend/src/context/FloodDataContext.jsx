@@ -31,17 +31,17 @@ export function FloodDataProvider({ children }) {
   const [riskScore, setRiskScore] = useState(null) // null in live mode until computed
   const [rivers, setRivers] = useState([])
   const [forecastTimeline, setForecastTimeline] = useState([])
-  const [shelters, setShelters] = useState(INITIAL_SHELTERS)
+  const [shelters, setShelters] = useState([])
   const [reports, setReports] = useState([])
   const [emergencies, setEmergencies] = useState([])
-  const [rescueTeams, setRescueTeams] = useState(INITIAL_RESCUE_TEAMS)
+  const [rescueTeams, setRescueTeams] = useState([])
   const [riskZones] = useState(RISK_POLYGONS)
   const [loadingData, setLoadingData] = useState(false)
 
   // Fetch real-time river telemetry helper
   const fetchLiveRivers = useCallback(async (isSim = false) => {
     try {
-      const liveRivers = await floodApi.getRiversTelemetry({ simulationMode: isSim })
+      const liveRivers = await floodApi.getRiversTelemetry({ simulationMode: false })
       setRivers(liveRivers)
     } catch (err) {
       console.warn('Error loading live rivers telemetry:', err)
@@ -65,10 +65,10 @@ export function FloodDataProvider({ children }) {
       if (repRes.status === 'fulfilled' && Array.isArray(repRes.value)) {
         setReports(repRes.value)
       }
-      if (shRes.status === 'fulfilled' && Array.isArray(shRes.value) && shRes.value.length > 0) {
+      if (shRes.status === 'fulfilled' && Array.isArray(shRes.value)) {
         setShelters(shRes.value)
       }
-      if (tmRes.status === 'fulfilled' && Array.isArray(tmRes.value) && tmRes.value.length > 0) {
+      if (tmRes.status === 'fulfilled' && Array.isArray(tmRes.value)) {
         setRescueTeams(tmRes.value)
       }
     } catch (err) {
@@ -81,86 +81,11 @@ export function FloodDataProvider({ children }) {
   // Switch global data mode
   const changeDataMode = useCallback(
     (mode) => {
-      setDataMode(mode)
-
-      if (mode === 'simulation-normal') {
-        setScenario('NORMAL')
-        setRiskScore(14)
-        setRivers(
-          INITIAL_RIVERS.map((r) => ({
-            ...r,
-            currentLevel: Number((r.warningLevel - 1.8).toFixed(2)),
-            status: 'LOW',
-            trend: 'STABLE',
-            inflow: '0.02 Lakh Cusecs',
-            outflow: '0.01 Lakh Cusecs',
-            gatesOpen: '0 / 64 Gates',
-            source: 'simulation',
-            isSimulation: true,
-          }))
-        )
-        setForecastTimeline([
-          { time: 'Now', timeLabel: 'Current', rainMm: 2, waterLevel: 23.4, riskScore: 12, status: 'LOW', isSimulation: true },
-          { time: '+3h', timeLabel: '21:00', rainMm: 0, waterLevel: 23.3, riskScore: 10, status: 'LOW', isSimulation: true },
-          { time: '+6h', timeLabel: '00:00', rainMm: 0, waterLevel: 23.2, riskScore: 10, status: 'LOW', isSimulation: true },
-          { time: '+12h', timeLabel: '06:00', rainMm: 4, waterLevel: 23.3, riskScore: 15, status: 'LOW', isSimulation: true },
-          { time: '+18h', timeLabel: '12:00', rainMm: 6, waterLevel: 23.5, riskScore: 18, status: 'LOW', isSimulation: true },
-          { time: '+24h', timeLabel: '18:00', rainMm: 2, waterLevel: 23.4, riskScore: 14, status: 'LOW', isSimulation: true },
-        ])
-        setEmergencies(INITIAL_EMERGENCIES)
-        setReports(INITIAL_REPORTS)
-      } else if (mode === 'simulation-monsoon') {
-        setScenario('MONSOON_WARNING')
-        setRiskScore(58)
-        setRivers(
-          INITIAL_RIVERS.map((r) => ({
-            ...r,
-            currentLevel: Number((r.warningLevel + 0.15).toFixed(2)),
-            status: 'MEDIUM',
-            trend: 'RISING',
-            inflow: '1.45 Lakh Cusecs',
-            outflow: '1.40 Lakh Cusecs',
-            gatesOpen: '12 / 64 Gates',
-            source: 'simulation',
-            isSimulation: true,
-          }))
-        )
-        setForecastTimeline([
-          { time: 'Now', timeLabel: 'Current', rainMm: 18, waterLevel: 25.5, riskScore: 56, status: 'MEDIUM', isSimulation: true },
-          { time: '+3h', timeLabel: '21:00', rainMm: 24, waterLevel: 25.8, riskScore: 62, status: 'HIGH', isSimulation: true },
-          { time: '+6h', timeLabel: '00:00', rainMm: 30, waterLevel: 26.1, riskScore: 68, status: 'HIGH', isSimulation: true },
-          { time: '+12h', timeLabel: '06:00', rainMm: 20, waterLevel: 25.9, riskScore: 60, status: 'MEDIUM', isSimulation: true },
-          { time: '+18h', timeLabel: '12:00', rainMm: 12, waterLevel: 25.4, riskScore: 50, status: 'MEDIUM', isSimulation: true },
-          { time: '+24h', timeLabel: '18:00', rainMm: 8, waterLevel: 24.8, riskScore: 35, status: 'MODERATE', isSimulation: true },
-        ])
-        setEmergencies(INITIAL_EMERGENCIES)
-        setReports(INITIAL_REPORTS)
-      } else if (mode === 'simulation-mahanadi') {
-        setScenario('FLASH_FLOOD_RED_ALERT')
-        setRiskScore(88)
-        setRivers(
-          INITIAL_RIVERS.map((r) => ({
-            ...r,
-            source: 'simulation',
-            isSimulation: true,
-          }))
-        )
-        setForecastTimeline(
-          INITIAL_FORECAST_TIMELINE.map((item) => ({
-            ...item,
-            source: 'simulation',
-            isSimulation: true,
-          }))
-        )
-        setEmergencies(INITIAL_EMERGENCIES)
-        setReports(INITIAL_REPORTS)
-      } else {
-        // LIVE MODE (Default)
-        setScenario('LIVE')
-        setDataMode('live')
-        fetchLiveRivers(false)
-        fetchLiveDatabaseData()
-      }
+      // Force live database telemetry only
+      setDataMode('live')
+      setScenario('LIVE')
+      fetchLiveRivers(false)
+      fetchLiveDatabaseData()
     },
     [fetchLiveRivers, fetchLiveDatabaseData]
   )

@@ -37,7 +37,7 @@ export default function EmergencyTable() {
     try {
       const [emList, teamList] = await Promise.all([
         emergencyApi.getAllRequests(),
-        emergencyApi.getAvailableRescueTeams({ status: 'AVAILABLE' }),
+        emergencyApi.getAvailableRescueTeams(),
       ])
       setEmergencies(Array.isArray(emList) ? emList : [])
       setAvailableTeams(Array.isArray(teamList) ? teamList : [])

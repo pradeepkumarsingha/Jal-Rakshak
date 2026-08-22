@@ -1,15 +1,9 @@
 import api from './api'
-import { INITIAL_REPORTS } from '../utils/mockData'
 
 export const reportApi = {
   getAllReports: async (params = {}) => {
-    try {
-      const res = await api.get('/api/v1/reports', { params })
-      return res.data?.data || res.data || []
-    } catch (err) {
-      console.warn('Fallback to mock reports:', err.message)
-      return INITIAL_REPORTS
-    }
+    const res = await api.get('/api/v1/reports', { params })
+    return res.data?.data || res.data || []
   },
 
   getMyReports: async () => {

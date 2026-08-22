@@ -1,5 +1,4 @@
 import api from './api'
-import { INITIAL_EMERGENCIES, INITIAL_RESCUE_TEAMS } from '../utils/mockData'
 
 export const emergencyApi = {
   createEmergencyRequest: async (data) => {
@@ -23,33 +22,18 @@ export const emergencyApi = {
   },
 
   getAllRequests: async (params = {}) => {
-    try {
-      const res = await api.get('/api/v1/emergency/requests', { params })
-      return res.data?.data || res.data || []
-    } catch (err) {
-      console.warn('Fallback to mock emergencies:', err.message)
-      return INITIAL_EMERGENCIES
-    }
+    const res = await api.get('/api/v1/emergency/requests', { params })
+    return res.data?.data || res.data || []
   },
 
   getRequestById: async (id) => {
-    try {
-      const res = await api.get(`/api/v1/emergency/${id}`)
-      return res.data?.data || res.data
-    } catch (err) {
-      console.error(`Get emergency ${id} failed:`, err.message)
-      throw err
-    }
+    const res = await api.get(`/api/v1/emergency/${id}`)
+    return res.data?.data || res.data
   },
 
   getAvailableRescueTeams: async (params = {}) => {
-    try {
-      const res = await api.get('/api/v1/rescue/teams', { params })
-      return res.data?.data || res.data || []
-    } catch (err) {
-      console.warn('Fallback to mock rescue teams:', err.message)
-      return INITIAL_RESCUE_TEAMS
-    }
+    const res = await api.get('/api/v1/rescue/teams', { params })
+    return res.data?.data || res.data || []
   },
 
   assignTeam: async (emergencyId, { rescueTeamId, estimatedEtaMinutes, note }) => {

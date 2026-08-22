@@ -33,6 +33,7 @@ app.use(
   helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
   })
 );
 
@@ -76,6 +77,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('combined', { stream: logger.stream }));
 }
+
+// Serve uploaded files locally in development/mock mode
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Rate Limiting on API endpoints
 app.use('/api', apiLimiter);
