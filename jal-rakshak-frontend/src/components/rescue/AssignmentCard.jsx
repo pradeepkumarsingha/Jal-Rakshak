@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import PriorityBadge from './PriorityBadge'
-import { formatTimeAgo } from '../../utils/helpers'
+import { formatTimeAgo, formatLocationText } from '../../utils/helpers'
 import {
   Flame,
   Users,
@@ -32,9 +32,10 @@ export default function AssignmentCard({ mission, onUpdateStatus, isSelected = f
 
   if (!mission) return null
 
-  const assignmentId = mission.assignmentId || mission.id || mission._id
+  const assignmentId = mission._id || mission.id
   const emergency = mission.emergency || mission
-  const currentStatus = mission.assignmentStatus || mission.status || 'ASSIGNED'
+
+  const currentStatus = mission.status || 'ASSIGNED'
   const nextStatus = NEXT_STATUS_MAP[currentStatus]
 
   const handleNextClick = (targetStatus) => {
@@ -55,8 +56,7 @@ export default function AssignmentCard({ mission, onUpdateStatus, isSelected = f
     setStatusNote('')
   }
 
-  const locationText =
-    emergency.location?.address || emergency.address || (typeof emergency.location === 'string' ? emergency.location : 'Target Location')
+  const locationText = formatLocationText(emergency.location || emergency.address, 'Target Location')
 
   const totalPeople = emergency.totalPeople || emergency.peopleCount || 1
 

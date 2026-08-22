@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useFloodData } from '../../context/FloodDataContext'
 import { useLocation } from '../../context/LocationContext'
 import { useGeolocation } from '../../hooks/useGeolocation'
+import { formatLocationText } from '../../utils/helpers'
 import MapLegend from './MapLegend'
 import MapControls from './MapControls'
 import {
@@ -292,16 +293,16 @@ export default function FloodRiskMap({
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">{sos.id}</span>
                   </div>
-                  <h4 className="font-bold text-slate-900 text-sm mt-1">{sos.category}</h4>
-                  <p className="text-slate-500 text-[11px] mt-0.5">{sos.location}</p>
+                  <h4 className="font-bold text-slate-900 text-sm mt-1">{sos.category || 'Emergency SOS'}</h4>
+                  <p className="text-slate-500 text-[11px] mt-0.5">{formatLocationText(sos.location || sos.address, 'Emergency Location')}</p>
 
                   <div className="mt-2 bg-red-50 p-2 rounded-lg border border-red-100 text-[11px] text-red-900 space-y-1">
                     <p className="flex items-center gap-1 font-semibold">
-                      <Users className="w-3.5 h-3.5 text-red-600" /> {sos.peopleCount} Stranded Persons
+                      <Users className="w-3.5 h-3.5 text-red-600" /> {sos.peopleCount || sos.totalPeople || 1} Stranded Persons
                     </p>
-                    <p className="text-[11px] text-slate-600 line-clamp-2">{sos.description}</p>
+                    <p className="text-[11px] text-slate-600 line-clamp-2">{sos.description || 'Distress assistance requested.'}</p>
                     <p className="text-[10px] font-bold text-brand-700 mt-1">
-                      Assigned: {sos.assignedTeam || 'Pending Team Dispatch'}
+                      Assigned: {sos.assignedTeam?.teamName || sos.assignedTeam || 'Pending Team Dispatch'}
                     </p>
                   </div>
 
@@ -321,18 +322,18 @@ export default function FloodRiskMap({
         {/* Citizen Hazard Reports */}
         {layers.reports &&
           reports.map((rep) => (
-            <Marker key={rep.id} position={[rep.lat, rep.lng]} icon={reportIcon}>
+            <Marker key={rep.id || rep._id} position={[rep.lat, rep.lng]} icon={reportIcon}>
               <Popup>
                 <div className="p-2 text-xs font-sans max-w-[240px]">
                   <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                    HAZARD REPORT ({rep.status})
+                    HAZARD REPORT ({rep.status || rep.verificationStatus || 'PENDING'})
                   </span>
-                  <h4 className="font-bold text-slate-900 text-xs mt-1">{rep.category}</h4>
-                  <p className="text-slate-500 text-[10px]">{rep.location}</p>
-                  <p className="text-slate-700 text-[11px] mt-1 italic">"{rep.description}"</p>
+                  <h4 className="font-bold text-slate-900 text-xs mt-1">{rep.category || rep.hazardType || 'Flood Hazard'}</h4>
+                  <p className="text-slate-500 text-[10px]">{formatLocationText(rep.location || rep.address, 'Hazard Location')}</p>
+                  <p className="text-slate-700 text-[11px] mt-1 italic">"{rep.description || 'Hazard reported'}"</p>
                   <div className="mt-1.5 text-[10px] text-slate-500 flex justify-between">
-                    <span>Depth: <strong>{rep.waterDepth}</strong></span>
-                    <span>AI Conf: <strong>{rep.aiConfidence}%</strong></span>
+                    <span>Depth: <strong>{rep.waterDepth || rep.submittedWaterLevel || rep.waterLevel || 'N/A'}</strong></span>
+                    <span>AI Conf: <strong>{rep.aiConfidence ?? (rep.aiAnalysis?.confidence ? Math.round(rep.aiAnalysis.confidence * 100) : 85)}%</strong></span>
                   </div>
                 </div>
               </Popup>

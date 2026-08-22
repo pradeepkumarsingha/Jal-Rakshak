@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { emergencyApi } from '../../services/emergencyApi'
 import { useAlert } from '../../context/AlertContext'
 import { getSocket } from '../../services/socket'
-import { getSeverityInfo, formatTimeAgo } from '../../utils/helpers'
+import { getSeverityInfo, formatTimeAgo, formatLocationText } from '../../utils/helpers'
 import {
   Flame,
   Search,
@@ -134,7 +134,7 @@ export default function EmergencyTable() {
       return true
     })
     .filter((e) => {
-      const loc = e.address || e.location?.address || (typeof e.location === 'string' ? e.location : '')
+      const loc = formatLocationText(e.address || e.location, '')
       const id = e.requestId || e._id || e.id || ''
       const desc = e.description || ''
       return (
@@ -250,7 +250,7 @@ export default function EmergencyTable() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="text-slate-200 font-medium truncate max-w-[220px]">
-                        {sos.address || sos.location?.address || 'Location coordinates'}
+                        {formatLocationText(sos.address || sos.location, 'Location coordinates')}
                       </div>
                       <div className="text-slate-400 text-[11px] truncate max-w-[220px] italic">
                         "{sos.description}"

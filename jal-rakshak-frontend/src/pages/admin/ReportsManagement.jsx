@@ -4,6 +4,7 @@ import { emergencyApi } from '../../services/emergencyApi'
 import { useAlert } from '../../context/AlertContext'
 import { getSocket } from '../../services/socket'
 import ReportVerificationCard from '../../components/admin/ReportVerificationCard'
+import { formatLocationText } from '../../utils/helpers'
 import { FileCheck2, Filter, Search, ShieldAlert, Sparkles, CheckCircle2, RefreshCw } from 'lucide-react'
 
 export default function ReportsManagement() {
@@ -160,7 +161,7 @@ export default function ReportsManagement() {
       return true
     })
     .filter((r) => {
-      const loc = r.location?.address || r.address || (typeof r.location === 'string' ? r.location : '')
+      const loc = formatLocationText(r.location || r.address, '')
       const desc = r.description || ''
       const user = r.user?.fullName || r.citizenName || r.user || ''
       const team = r.assignedTeam?.teamName || r.assignedTeamName || ''

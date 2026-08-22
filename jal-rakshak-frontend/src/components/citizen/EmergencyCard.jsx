@@ -1,5 +1,5 @@
 import React from 'react'
-import { getSeverityInfo, formatTimeAgo } from '../../utils/helpers'
+import { getSeverityInfo, formatTimeAgo, formatLocationText } from '../../utils/helpers'
 import { Flame, Users, Clock, MapPin, CheckCircle2, Navigation, AlertCircle, Phone } from 'lucide-react'
 
 export default function EmergencyCard({ emergency, onAction, actionLabel = 'Respond' }) {
@@ -50,7 +50,7 @@ export default function EmergencyCard({ emergency, onAction, actionLabel = 'Resp
       <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
         <span className="flex items-center gap-1 truncate max-w-[70%]">
           <MapPin className="w-3.5 h-3.5 text-brand-600 shrink-0" />
-          <strong className="text-slate-700">{emergency.location}</strong>
+          <strong className="text-slate-700">{formatLocationText(emergency.location || emergency.address, 'Emergency Location')}</strong>
         </span>
         <span className="flex items-center gap-1 shrink-0 text-[11px]">
           <Clock className="w-3 h-3" /> {formatTimeAgo(emergency.timestamp)}

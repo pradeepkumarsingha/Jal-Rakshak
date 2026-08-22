@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { AlertTriangle, Bell, Volume2, VolumeX, X, ChevronRight } from 'lucide-react'
 import { useAlert } from '../../context/AlertContext'
 import { Link } from 'react-router-dom'
+import { formatLocationText } from '../../utils/helpers'
 
 export default function AlertBanner({
   alert,
@@ -38,7 +39,7 @@ export default function AlertBanner({
               <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-white text-red-700">
                 {alert.severity} WARNING
               </span>
-              <span className="text-xs font-semibold opacity-90">{alert.location}</span>
+              <span className="text-xs font-semibold opacity-90">{formatLocationText(alert.location || alert.address, 'Alert Area')}</span>
             </div>
             <h4 className="font-extrabold text-sm sm:text-base mt-1 text-white leading-tight">
               {alert.title}

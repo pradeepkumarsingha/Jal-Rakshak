@@ -98,3 +98,31 @@ export function formatTimeAgo(timestamp) {
 export function generateId(prefix = 'REQ') {
   return `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`
 }
+
+/**
+ * Safely format any location object or string into a displayable string
+ */
+export function formatLocationText(loc, fallback = 'Location Coordinates') {
+  if (!loc) return fallback
+  if (typeof loc === 'string') return loc
+  if (typeof loc === 'object') {
+    if (loc.address && typeof loc.address === 'string') return loc.address
+    if (loc.locationName && typeof loc.locationName === 'string') return loc.locationName
+    if (loc.name && typeof loc.name === 'string') return loc.name
+    if (loc.formattedAddress && typeof loc.formattedAddress === 'string') return loc.formattedAddress
+    if (Array.isArray(loc.coordinates) && loc.coordinates.length >= 2) {
+      const [lng, lat] = loc.coordinates
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        return `${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E`
+      }
+    }
+    if (typeof loc.latitude === 'number' && typeof loc.longitude === 'number') {
+      return `${loc.latitude.toFixed(4)}° N, ${loc.longitude.toFixed(4)}° E`
+    }
+    if (typeof loc.lat === 'number' && typeof loc.lng === 'number') {
+      return `${loc.lat.toFixed(4)}° N, ${loc.lng.toFixed(4)}° E`
+    }
+  }
+  return fallback
+}
+

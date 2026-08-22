@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { formatTimeAgo } from '../../utils/helpers'
+import { formatTimeAgo, formatLocationText } from '../../utils/helpers'
 import {
   CheckCircle,
   AlertTriangle,
@@ -154,9 +154,7 @@ export default function ReportVerificationCard({
           <p className="text-xs text-slate-300 flex items-center gap-1 mt-1.5 font-medium">
             <MapPin className="w-3.5 h-3.5 text-brand-400 shrink-0" />
             <span>
-              {report.location?.address ||
-                report.address ||
-                (typeof report.location === 'string' ? report.location : 'Ground Location')}
+              {formatLocationText(report.location || report.address, 'Ground Location')}
             </span>
           </p>
 
@@ -394,7 +392,7 @@ export default function ReportVerificationCard({
                         <input
                           type="text"
                           disabled
-                          value={report.location?.address || report.address || 'Hazard Location'}
+                          value={formatLocationText(report.location || report.address, 'Hazard Location')}
                           className="w-full px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700/50 text-slate-400 text-xs truncate"
                         />
                       </div>
@@ -465,7 +463,7 @@ export default function ReportVerificationCard({
             <p className="text-xs text-slate-400">
               Assign an active rescue squad to the verified ground coordinates at{' '}
               <strong className="text-white">
-                {report.location?.address || report.address || 'Hazard Location'}
+                {formatLocationText(report.location || report.address, 'Hazard Location')}
               </strong>
               .
             </p>

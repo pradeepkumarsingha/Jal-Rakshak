@@ -4,6 +4,7 @@ import { useAlert } from '../../context/AlertContext'
 import { getSocket } from '../../services/socket'
 import AssignmentCard from '../../components/rescue/AssignmentCard'
 import RouteDisplay from '../../components/rescue/RouteDisplay'
+import { formatLocationText } from '../../utils/helpers'
 import { LifeBuoy, Filter, Search, Flame, CheckCircle, Navigation, RefreshCw } from 'lucide-react'
 
 export default function AssignedRequests() {
@@ -149,7 +150,7 @@ export default function AssignedRequests() {
       return true
     })
     .filter((m) => {
-      const loc = m.emergency?.location?.address || m.emergency?.address || m.location || ''
+      const loc = formatLocationText(m.emergency?.location || m.emergency?.address || m.location, '')
       const reqId = m.emergency?.requestId || m.requestId || m.id || ''
       const cat = m.emergency?.requestType || m.category || ''
       return (
