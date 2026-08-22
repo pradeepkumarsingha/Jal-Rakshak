@@ -42,7 +42,7 @@ const createUnavailableResult = (reason = 'Verification model unavailable', raw 
  * @param {Object} raw - Raw API response data
  * @returns {Object} Normalized hazard schema
  */
-const normalizeVerificationResponse = (raw = {}) => {
+const normalizeVerificationResponse = (raw = {}, reportedWaterLevel = null) => {
   if (!raw || typeof raw !== 'object') {
     return createUnavailableResult('Empty or non-object response from model');
   }
@@ -63,21 +63,25 @@ const normalizeVerificationResponse = (raw = {}) => {
 
   // 2. Severity normalization
   let severity = 'UNKNOWN';
-  const rawSev = String(raw.severity ?? raw.riskLevel ?? raw.level ?? raw.severity_level ?? '').toUpperCase();
-  if (['LOW', 'MEDIUM', 'HIGH', 'SEVERE'].includes(rawSev)) {
-    severity = rawSev;
-  } else if (rawSev.includes('CRIT') || rawSev.includes('EXTREME') || rawSev.includes('SEVERE')) {
-    severity = 'SEVERE';
-  } else if (rawSev.includes('HIGH')) {
-    severity = 'HIGH';
-  } else if (rawSev.includes('MOD') || rawSev.includes('MED')) {
-    severity = 'MEDIUM';
-  } else if (rawSev.includes('LOW') || rawSev.includes('MINOR')) {
-    severity = 'LOW';
-  } else if (rawSev.includes('NORMAL')) {
-    severity = floodDetected ? 'LOW' : 'UNKNOWN';
-  } else if (floodDetected) {
-    severity = 'HIGH';
+  if (reportedWaterLevel && floodDetected) {
+    severity = reportedWaterLevel.toUpperCase();
+  } else {
+    const rawSev = String(raw.severity ?? raw.riskLevel ?? raw.level ?? raw.severity_level ?? '').toUpperCase();
+    if (['LOW', 'MEDIUM', 'HIGH', 'SEVERE'].includes(rawSev)) {
+      severity = rawSev;
+    } else if (rawSev.includes('CRIT') || rawSev.includes('EXTREME') || rawSev.includes('SEVERE')) {
+      severity = 'SEVERE';
+    } else if (rawSev.includes('HIGH')) {
+      severity = 'HIGH';
+    } else if (rawSev.includes('MOD') || rawSev.includes('MED')) {
+      severity = 'MEDIUM';
+    } else if (rawSev.includes('LOW') || rawSev.includes('MINOR')) {
+      severity = 'LOW';
+    } else if (rawSev.includes('NORMAL')) {
+      severity = floodDetected ? 'LOW' : 'UNKNOWN';
+    } else if (floodDetected) {
+      severity = 'HIGH';
+    }
   }
 
   // 3. Confidence score
@@ -139,6 +143,7 @@ const normalizeVerificationResponse = (raw = {}) => {
     roadCondition,
     vehicleTravelRecommendation,
     hazardObjects: Array.isArray(raw.hazardObjects) ? raw.hazardObjects : floodDetected ? ['floodwater', 'submerged_area'] : [],
+    message: raw.message || null,
     modelName: 'ai-report-hazard',
     modelVersion: 'v1.0',
     source: 'deployed_hazard_verification_model',
@@ -156,7 +161,7 @@ const normalizeVerificationResponse = (raw = {}) => {
  * @param {string} mimetype - Image MIME type
  * @returns {Promise<Object>} Normalized analysis
  */
-const verifyImageByMultipart = async (buffer, filename = 'hazard.jpg', mimetype = 'image/jpeg') => {
+const verifyImageByMultipart = async (buffer, filename = 'hazard.jpg', mimetype = 'image/jpeg', reportedWaterLevel = null) => {
   if (!buffer) {
     return createUnavailableResult('No image buffer provided');
   }
@@ -179,7 +184,7 @@ const verifyImageByMultipart = async (buffer, filename = 'hazard.jpg', mimetype 
     });
 
     logger.info(`Hazard model responded: ${JSON.stringify(response.data)}`);
-    return normalizeVerificationResponse(response.data);
+    return normalizeVerificationResponse(response.data, reportedWaterLevel);
   } catch (error) {
     logger.warn(`Hazard image verification failed: ${error.message}`);
     const errorDetails = error.response?.data || null;
@@ -192,7 +197,7 @@ const verifyImageByMultipart = async (buffer, filename = 'hazard.jpg', mimetype 
  * @param {string} imageUrl - Public secure image URL
  * @returns {Promise<Object>} Normalized analysis
  */
-const verifyImageByUrl = async (imageUrl) => {
+const verifyImageByUrl = async (imageUrl, reportedWaterLevel = null) => {
   if (!imageUrl) {
     return createUnavailableResult('No image URL provided');
   }
@@ -207,7 +212,7 @@ const verifyImageByUrl = async (imageUrl) => {
 
     const buffer = Buffer.from(imgRes.data);
     const contentType = imgRes.headers['content-type'] || 'image/jpeg';
-    return verifyImageByMultipart(buffer, 'image.jpg', contentType);
+    return verifyImageByMultipart(buffer, 'image.jpg', contentType, reportedWaterLevel);
   } catch (error) {
     logger.warn(`Failed to fetch image URL for hazard verification: ${error.message}`);
     return createUnavailableResult(error.message, { errorDetails: error.response?.data || null });
@@ -219,12 +224,12 @@ const verifyImageByUrl = async (imageUrl) => {
  * @param {Object} params - { imageUrl, buffer, filename, mimetype }
  * @returns {Promise<Object>} Normalized analysis
  */
-const verifyHazardImage = async ({ imageUrl, buffer, filename, mimetype }) => {
+const verifyHazardImage = async ({ imageUrl, buffer, filename, mimetype, reportedWaterLevel = null }) => {
   if (buffer && Buffer.isBuffer(buffer) && buffer.length > 0) {
-    return verifyImageByMultipart(buffer, filename, mimetype);
+    return verifyImageByMultipart(buffer, filename, mimetype, reportedWaterLevel);
   }
   if (imageUrl) {
-    return verifyImageByUrl(imageUrl);
+    return verifyImageByUrl(imageUrl, reportedWaterLevel);
   }
   return createUnavailableResult('Neither image buffer nor image URL provided');
 };

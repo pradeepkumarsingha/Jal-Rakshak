@@ -54,9 +54,13 @@ export default function ReportVerificationCard({ report, onVerify }) {
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer"
           onClick={() => setModalOpen(true)}
         />
-        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-xs text-[10px] font-mono text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+        <div className={`absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-xs text-[10px] font-mono border flex items-center gap-1 ${
+          ai.floodDetected === false 
+            ? 'text-rose-400 border-rose-500/30' 
+            : 'text-cyan-300 border-cyan-500/30'
+        }`}>
           <Sparkles className="w-3 h-3" />
-          <span>AI Severity: {ai.severity || 'UNKNOWN'}</span>
+          <span>AI Severity: {ai.floodDetected === false ? 'FALSE' : (ai.severity || 'UNKNOWN')}</span>
         </div>
         <button
           type="button"
@@ -113,7 +117,7 @@ export default function ReportVerificationCard({ report, onVerify }) {
               </div>
               <div>
                 <span className="text-slate-400 block text-[10px]">AI Road Estimate</span>
-                <strong className="text-cyan-400">{ai.roadCondition || 'UNKNOWN'}</strong>
+                <strong className="text-cyan-400">{ai.floodDetected === false ? 'N/A' : (ai.roadCondition || 'UNKNOWN')}</strong>
               </div>
               <div>
                 <span className="text-slate-400 block text-[10px]">Confidence</span>
@@ -123,10 +127,17 @@ export default function ReportVerificationCard({ report, onVerify }) {
           </div>
 
           {/* AI Estimate Disclaimer */}
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-amber-300/80 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
-            <Info className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span>AI model output is an estimate. Administrator ground verification is required.</span>
-          </div>
+          {ai.floodDetected === false ? (
+            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-rose-300 bg-rose-950/40 px-2.5 py-1.5 rounded-lg border border-rose-500/30">
+              <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
+              <span><strong>AI Verification Failed:</strong> {ai.message || ai.rawResponse?.message || 'This image does not contain a genuine flood.'}</span>
+            </div>
+          ) : (
+            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-amber-300/80 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+              <Info className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span>AI model output is an estimate. Administrator ground verification is required.</span>
+            </div>
+          )}
         </div>
 
         {/* Verification Actions */}
