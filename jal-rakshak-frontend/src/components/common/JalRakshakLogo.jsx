@@ -408,7 +408,7 @@ export default function JalRakshakLogo({
         </div>
 
         {showTagline && (
-          <div className="flex items-center gap-1.5 mt-0.5">
+          <div className="hidden sm:flex items-center gap-1.5 mt-0.5">
             <span
               className={`font-extrabold tracking-wider uppercase text-[9px] ${
                 isDark ? 'text-slate-400' : 'text-slate-500'

@@ -36,7 +36,7 @@ import {
 
 export default function Navbar() {
   const { user, logout } = useAuth()
-  const { t } = useLanguage()
+  const { t, language, setLanguage } = useLanguage()
   const { activeCriticalAlert } = useAlert()
   const { dataMode, changeDataMode } = useFloodData()
   const location = useLocation()
@@ -111,27 +111,27 @@ export default function Navbar() {
     >
       {/* Top emergency live alert strip if critical alert exists */}
       {activeCriticalAlert && (
-        <div className="bg-red-600 text-white px-4 py-1.5 text-xs font-semibold flex items-center justify-between animate-pulse">
-          <div className="flex items-center gap-2 max-w-5xl truncate mx-auto">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-white animate-ping" />
-            <span className="uppercase tracking-wider font-extrabold bg-red-800 px-1.5 py-0.5 rounded text-[10px]">
-              CRITICAL FLOOD ALERT
+        <div className="bg-red-600 text-white px-3 sm:px-4 py-1 text-[11px] sm:text-xs font-semibold flex items-center justify-between animate-pulse w-full max-w-full overflow-hidden">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
+            <span className="flex h-2 w-2 rounded-full bg-white animate-ping shrink-0" />
+            <span className="uppercase tracking-wider font-extrabold bg-red-800 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] shrink-0">
+              ALERT
             </span>
             <span className="truncate">{activeCriticalAlert.title}: {activeCriticalAlert.message}</span>
           </div>
           <Link
             to="/emergency"
-            className="ml-2 whitespace-nowrap bg-white text-red-700 hover:bg-red-50 text-[11px] font-bold px-2.5 py-0.5 rounded shadow"
+            className="ml-2 whitespace-nowrap bg-white text-red-700 hover:bg-red-50 text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded shadow shrink-0"
           >
-            SOS Broadcast &rarr;
+            SOS &rarr;
           </Link>
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-2">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
           {/* Official Logo with dark theme support */}
-          <Link to="/" className="flex items-center group">
+          <Link to="/" className="flex items-center shrink-0 group">
             <JalRakshakLogo
               variant="horizontal"
               size="sm"
@@ -188,13 +188,13 @@ export default function Navbar() {
           )}
 
           {/* Action Bar Right */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Data Mode & Simulation Scenario Switcher */}
-            <div className="relative" ref={simRef}>
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            {/* Data Mode & Simulation Scenario Switcher (Desktop only) */}
+            <div className="relative hidden md:block" ref={simRef}>
               <button
                 type="button"
                 onClick={() => setSimMenuOpen(!simMenuOpen)}
-                className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                   dataMode === 'simulation-mahanadi'
                     ? 'bg-red-50 text-red-700 border-red-200'
                     : dataMode === 'simulation-monsoon'
@@ -283,12 +283,14 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Language Selector */}
-            <LanguageSelector />
+            {/* Desktop Language Selector (Hidden on mobile, present in drawer) */}
+            <div className="hidden sm:block">
+              <LanguageSelector />
+            </div>
 
-            {/* User Profile or Login/Register Links */}
+            {/* Desktop User Profile or Login/Register Links */}
             {user ? (
-              <div className="relative" ref={userRef}>
+              <div className="relative hidden md:block" ref={userRef}>
                 <button
                   type="button"
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -331,7 +333,7 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-1.5">
+              <div className="hidden sm:flex items-center gap-1.5">
                 <Link
                   to="/login"
                   className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 border border-slate-200 transition"
@@ -341,7 +343,7 @@ export default function Navbar() {
                 </Link>
                 <Link
                   to="/register"
-                  className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 shadow-sm transition"
+                  className="hidden md:flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 shadow-sm transition"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   <span>Register</span>
@@ -352,9 +354,9 @@ export default function Navbar() {
             {/* Emergency SOS Quick Button */}
             <Link
               to="/emergency"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 text-white text-xs font-bold shadow-md shadow-red-600/30 hover:from-red-700 hover:to-rose-700 transition transform active:scale-95 animate-pulse"
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 text-white text-xs font-bold shadow-md shadow-red-600/30 hover:from-red-700 hover:to-rose-700 transition transform active:scale-95 animate-pulse shrink-0"
             >
-              <Flame className="w-4 h-4" />
+              <Flame className="w-3.5 h-3.5" />
               <span>SOS</span>
             </Link>
 
@@ -362,11 +364,12 @@ export default function Navbar() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className={`lg:hidden p-2 rounded-lg ${
+              className={`lg:hidden p-1.5 sm:p-2 rounded-xl transition cursor-pointer shrink-0 ${
                 isDarkPortal ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100'
               }`}
+              aria-label="Toggle Navigation Menu"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
             </button>
           </div>
         </div>
@@ -374,10 +377,53 @@ export default function Navbar() {
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
           <div
-            className={`lg:hidden py-4 px-2 border-t animate-in slide-in-from-top-4 duration-200 space-y-4 ${
-              isDarkPortal ? 'border-slate-800 bg-slate-900/98' : 'border-slate-200 bg-white/98'
+            className={`lg:hidden py-4 px-3 border-t animate-in slide-in-from-top-4 duration-200 space-y-3.5 ${
+              isDarkPortal ? 'border-slate-800 bg-slate-900/98 text-slate-100' : 'border-slate-200 bg-white/98 text-slate-900'
             }`}
           >
+            {/* Mobile User Profile Status Card */}
+            {user ? (
+              <div className={`p-3 rounded-2xl border flex items-center justify-between ${isDarkPortal ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    {(user.fullName || user.name || 'U')[0].toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-bold text-xs truncate">{user.fullName || user.name}</div>
+                    <div className="text-[10px] text-slate-400 capitalize">{user.role || 'Citizen'}</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout()
+                    setMobileMenuOpen(false)
+                    navigate('/')
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 text-xs font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-center font-bold text-xs"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-2 px-3 rounded-xl bg-brand-600 text-white text-center font-bold text-xs shadow-sm"
+                >
+                  Register
+                </Link>
+              </div>
+            )}
             {/* Quick Language Selector for Mobile */}
             <div className={`p-2.5 rounded-2xl border ${isDarkPortal ? 'bg-slate-800/60 border-slate-700/60' : 'bg-slate-50 border-slate-200/80'}`}>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2 px-1">
@@ -393,11 +439,10 @@ export default function Navbar() {
                     key={l.code}
                     type="button"
                     onClick={() => {
-                      i18n.changeLanguage(l.code)
-                      localStorage.setItem('jalrakshak_lang', l.code)
+                      setLanguage(l.code)
                     }}
                     className={`py-1.5 px-2 rounded-xl text-xs font-bold transition text-center cursor-pointer ${
-                      i18n.language === l.code
+                      language === l.code
                         ? 'bg-brand-600 text-white shadow-sm'
                         : isDarkPortal
                         ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -494,37 +539,9 @@ export default function Navbar() {
               >
                 <PhoneCall className="w-3.5 h-3.5" /> Call NDRF: <strong>1078</strong>
               </a>
-              {user ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    logout()
-                    setMobileMenuOpen(false)
-                    navigate('/')
-                  }}
-                  className="text-red-500 font-bold cursor-pointer"
-                >
-                  Sign Out
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Link
-                    to="/login"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="text-brand-600 font-bold"
-                  >
-                    Sign In
-                  </Link>
-                  <span>•</span>
-                  <Link
-                    to="/register"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="text-brand-600 font-bold"
-                  >
-                    Register
-                  </Link>
-                </div>
-              )}
+              <span className="text-[11px] text-slate-400 font-mono">
+                Jal Rakshak v2.4
+              </span>
             </div>
           </div>
         )}

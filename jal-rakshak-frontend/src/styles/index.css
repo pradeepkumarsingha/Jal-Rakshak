@@ -8,11 +8,16 @@
 @layer base {
   html, body, #root {
     min-height: 100%;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
     scroll-behavior: smooth;
   }
   
   body {
     font-family: 'Inter', 'Noto Sans Oriya', 'Noto Sans Devanagari', 'Kalinga', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow-x: hidden;
+    width: 100%;
   }
 
   h1, h2, h3, h4, h5, h6 {
