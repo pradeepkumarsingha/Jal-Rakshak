@@ -26,7 +26,7 @@ const NEXT_STATUS_MAP = {
   CANCELLED: null,
 }
 
-export default function AssignmentCard({ mission, onUpdateStatus }) {
+export default function AssignmentCard({ mission, onUpdateStatus, isSelected = false, onSelect = null }) {
   const [confirmModal, setConfirmModal] = useState(null)
   const [statusNote, setStatusNote] = useState('')
 
@@ -61,15 +61,28 @@ export default function AssignmentCard({ mission, onUpdateStatus }) {
   const totalPeople = emergency.totalPeople || emergency.peopleCount || 1
 
   return (
-    <div className="bg-slate-900 rounded-3xl border border-slate-800 p-6 shadow-xl space-y-4 transition hover:border-slate-700">
+    <div
+      onClick={() => onSelect && onSelect(mission)}
+      className={`bg-slate-900 rounded-3xl border p-6 shadow-xl space-y-4 transition cursor-pointer ${
+        isSelected
+          ? 'border-emerald-500 ring-2 ring-emerald-500/30 bg-slate-900 shadow-emerald-500/10'
+          : 'border-slate-800 hover:border-slate-700'
+      }`}
+    >
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-mono text-slate-300 bg-slate-950 px-2.5 py-0.5 rounded-lg border border-slate-800 font-bold">
               {emergency.requestId || mission.requestId || mission.id}
             </span>
             <PriorityBadge priority={emergency.priorityLevel || mission.priority || 'HIGH'} score={emergency.priorityScore || mission.priorityScore || 80} />
+            {isSelected && (
+              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                <Navigation className="w-3 h-3" />
+                <span>GPS Route Active</span>
+              </span>
+            )}
           </div>
           <h3 className="text-base sm:text-lg font-extrabold text-white mt-1.5">
             {emergency.requestType || mission.category || 'Distress Rescue Mission'}
@@ -77,7 +90,7 @@ export default function AssignmentCard({ mission, onUpdateStatus }) {
         </div>
 
         <div className="text-right">
-          <span className="text-[11px] text-slate-400 flex items-center gap-1">
+          <span className="text-[11px] text-slate-400 flex items-center gap-1 justify-end">
             <Clock className="w-3 h-3" /> {formatTimeAgo(mission.assignedAt || mission.timestamp || emergency.createdAt)}
           </span>
           {mission.estimatedEtaMinutes && (

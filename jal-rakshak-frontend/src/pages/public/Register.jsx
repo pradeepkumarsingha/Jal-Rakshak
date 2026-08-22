@@ -57,17 +57,43 @@ export default function Register() {
 
   const handleChange = (e) => {
     const { name, value } = e.target
+    if (name === 'name') {
+      // Allow only letters, spaces, dots, and hyphens (textual characters only)
+      const textOnly = value.replace(/[^a-zA-Z\s.-]/g, '')
+      setFormData((prev) => ({ ...prev, name: textOnly }))
+      return
+    }
+    if (name === 'phone') {
+      // Restrict strictly to numbers and max 10 digits
+      const digits = value.replace(/\D/g, '').slice(0, 10)
+      setFormData((prev) => ({ ...prev, phone: digits }))
+      return
+    }
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setErrorMessage('')
+
+    const cleanName = formData.name.trim()
+    if (!cleanName || !/^[a-zA-Z\s.-]+$/.test(cleanName)) {
+      setErrorMessage('Full name should contain only letters and spaces.')
+      return
+    }
+
+    const cleanPhone = formData.phone.replace(/\D/g, '')
+    if (cleanPhone.length !== 10) {
+      setErrorMessage('Please enter a valid 10-digit mobile number (e.g. 9861012345).')
+      return
+    }
+
     setLoading(true)
 
     const payload = {
       ...formData,
-      fullName: formData.name.trim(),
+      fullName: cleanName,
+      phone: cleanPhone,
       email: formData.email.trim(),
       role: 'citizen',
     }
@@ -121,13 +147,17 @@ export default function Register() {
                   onChange={handleChange}
                   placeholder="e.g. Ramesh Mohanty"
                   required
+                  pattern="[A-Za-z\s.-]+"
+                  title="Full name should contain only letters and spaces"
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 outline-none text-xs"
                 />
               </div>
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 block mb-1">Phone Number (SMS Alerts) *</label>
+              <label className="font-bold text-slate-700 block mb-1">
+                Phone Number (10-digit mobile) *
+              </label>
               <div className="relative">
                 <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -135,8 +165,11 @@ export default function Register() {
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="+91 98610 XXXXX"
+                  placeholder="e.g. 9861012345"
                   required
+                  maxLength={10}
+                  pattern="[0-9]{10}"
+                  inputMode="numeric"
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 outline-none text-xs"
                 />
               </div>

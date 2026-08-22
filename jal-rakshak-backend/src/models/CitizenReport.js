@@ -163,6 +163,23 @@ const citizenReportSchema = new mongoose.Schema(
       notes: String,
     },
 
+    assignedTeam: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'RescueTeam',
+      default: null,
+    },
+
+    assignedTeamName: {
+      type: String,
+      default: null,
+    },
+
+    emergencyRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'EmergencyRequest',
+      default: null,
+    },
+
     escalationReason: String,
   },
   {

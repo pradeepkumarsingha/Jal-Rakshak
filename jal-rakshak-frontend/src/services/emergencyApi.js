@@ -89,4 +89,24 @@ export const emergencyApi = {
       throw err
     }
   },
+
+  getMyTeam: async () => {
+    try {
+      const res = await api.get('/api/v1/rescue/my-team')
+      return res.data?.data || res.data
+    } catch (err) {
+      console.warn('Failed to fetch my team:', err.message)
+      return null
+    }
+  },
+
+  switchMyTeam: async (teamId) => {
+    try {
+      const res = await api.post('/api/v1/rescue/switch-team', { teamId })
+      return res.data?.data || res.data
+    } catch (err) {
+      console.error('Failed to switch team:', err.response?.data || err.message)
+      throw err
+    }
+  },
 }

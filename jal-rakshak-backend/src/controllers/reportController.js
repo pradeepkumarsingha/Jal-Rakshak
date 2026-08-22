@@ -1,10 +1,18 @@
 const mongoose = require('mongoose');
 const CitizenReport = require('../models/CitizenReport');
+const RescueTeam = require('../models/RescueTeam');
+const EmergencyRequest = require('../models/EmergencyRequest');
+const RescueAssignment = require('../models/RescueAssignment');
 const AuditLog = require('../models/AuditLog');
 const { ErrorResponse } = require('../middleware/errorHandler');
 const { successResponse } = require('../utils/helpers');
 const { cloudinaryService, hazardVerificationService } = require('../services');
-const { notifyNewReport, notifyReportUpdated } = require('../socket');
+const {
+  notifyNewReport,
+  notifyReportUpdated,
+  notifyNewEmergency,
+  notifyEmergencyAssigned,
+} = require('../socket');
 const logger = require('../utils/logger');
 
 const isDbReady = () => mongoose.connection.readyState === 1;
@@ -320,13 +328,26 @@ const getPendingReports = async (req, res, next) => {
 };
 
 /**
+ * Helper to find CitizenReport by either MongoDB _id or custom reportId (e.g. REP-6038)
+ */
+const findReportByIdOrCode = async (idOrCode) => {
+  if (!idOrCode) return null;
+  const isObjectId = mongoose.Types.ObjectId.isValid(idOrCode);
+  if (isObjectId) {
+    const doc = await CitizenReport.findById(idOrCode);
+    if (doc) return doc;
+  }
+  return await CitizenReport.findOne({ reportId: idOrCode });
+};
+
+/**
  * @desc    Verify / Reject / Escalate Citizen Report
  * @route   POST /api/v1/reports/:id/verify
  * @access  Private (Admin)
  */
 const verifyReport = async (req, res, next) => {
   try {
-    const { action, notes } = req.body;
+    const { action, notes, rescueTeamId, estimatedEtaMinutes } = req.body;
     const normAction = String(action || 'VERIFY').toUpperCase();
 
     if (!['VERIFY', 'REJECT', 'ESCALATE'].includes(normAction)) {
@@ -340,7 +361,7 @@ const verifyReport = async (req, res, next) => {
       });
     }
 
-    const report = await CitizenReport.findById(req.params.id);
+    const report = await findReportByIdOrCode(req.params.id);
     if (!report) {
       return res.status(404).json({
         success: false,
@@ -375,6 +396,65 @@ const verifyReport = async (req, res, next) => {
       notes: notes || '',
     };
 
+    // If a rescue team is selected for assignment during verification
+    let assignedTeamObj = null;
+    let createdEmergency = null;
+    let createdAssignment = null;
+
+    if (rescueTeamId && normAction !== 'REJECT') {
+      const isTeamObjectId = mongoose.Types.ObjectId.isValid(rescueTeamId);
+      assignedTeamObj = isTeamObjectId
+        ? await RescueTeam.findById(rescueTeamId)
+        : await RescueTeam.findOne({ $or: [{ teamCode: rescueTeamId }, { teamName: rescueTeamId }] });
+
+      if (assignedTeamObj) {
+        report.assignedTeam = assignedTeamObj._id;
+        report.assignedTeamName = assignedTeamObj.teamName;
+
+        // Automatically create linked emergency dispatch request
+        createdEmergency = await EmergencyRequest.create({
+          user: report.user || null,
+          requestType: 'RESCUE_REQUIRED',
+          category: 'Field Hazard Dispatch',
+          location: report.location,
+          address: report.address || 'Reported Hazard Location',
+          totalPeople: 1,
+          waterSeverity: report.waterLevel || 'HIGH',
+          roadAccess: report.roadStatus || 'BLOCKED',
+          description: `Dispatched from verified citizen report (${report.reportId || report._id}): ${report.description || 'Verified field hazard requiring tactical response'}`,
+          priorityScore: report.waterLevel === 'SEVERE' ? 95 : report.waterLevel === 'HIGH' ? 85 : 70,
+          priorityLevel: report.waterLevel === 'SEVERE' ? 'CRITICAL' : report.waterLevel === 'HIGH' ? 'HIGH' : 'MEDIUM',
+          status: 'DISPATCHED',
+          assignedTeam: assignedTeamObj._id,
+        });
+
+        const operatorId = req.user ? (req.user._id || req.user.id) : null;
+        const verifyNoteMsg = typeof notes === 'string' && notes.trim()
+          ? notes.trim()
+          : 'Assigned directly upon hazard report verification';
+
+        createdAssignment = await RescueAssignment.create({
+          emergencyRequest: createdEmergency._id,
+          rescueTeam: assignedTeamObj._id,
+          assignedBy: operatorId,
+          assignmentStatus: 'ASSIGNED',
+          assignedAt: new Date(),
+          estimatedEtaMinutes: Number(estimatedEtaMinutes) || 15,
+          notes: [{ message: verifyNoteMsg, createdBy: operatorId, createdAt: new Date() }],
+        });
+
+        createdEmergency.activeAssignment = createdAssignment._id;
+        await createdEmergency.save();
+
+        assignedTeamObj.status = 'DEPLOYED';
+        await assignedTeamObj.save();
+
+        // Emit Socket.IO events for live emergency dispatch
+        notifyNewEmergency(createdEmergency);
+        notifyEmergencyAssigned(createdEmergency, createdAssignment, assignedTeamObj);
+      }
+    }
+
     await report.save();
 
     // Create Audit Log
@@ -389,21 +469,172 @@ const verifyReport = async (req, res, next) => {
         previousStatus: 'PENDING',
         newStatus,
         notes,
+        assignedTeam: assignedTeamObj ? assignedTeamObj.teamName : null,
       },
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
     }).catch((err) => logger.warn(`AuditLog creation warning: ${err.message}`));
 
-    // Emit Socket.IO event
+    // Emit Socket.IO event for report
     notifyReportUpdated(report);
 
     return res.status(200).json({
       success: true,
-      message: `Report status updated to ${newStatus}`,
+      message: `Report status updated to ${newStatus}${assignedTeamObj ? ` and assigned to ${assignedTeamObj.teamName}` : ''}`,
       data: {
         reportId: report._id,
         verificationStatus: report.verificationStatus,
         verification: report.verification,
+        assignedTeam: assignedTeamObj
+          ? {
+              id: assignedTeamObj._id,
+              teamName: assignedTeamObj.teamName,
+              teamCode: assignedTeamObj.teamCode,
+            }
+          : null,
+        emergencyId: createdEmergency ? createdEmergency._id : null,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Assign Rescue Team to Verified Hazard Report
+ * @route   POST /api/v1/reports/:id/assign-rescue
+ * @access  Private (Admin)
+ */
+const assignRescueTeamToReport = async (req, res, next) => {
+  try {
+    const { rescueTeamId, estimatedEtaMinutes, notes } = req.body;
+
+    if (!rescueTeamId) {
+      return res.status(422).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Rescue team ID is required',
+          details: null,
+        },
+      });
+    }
+
+    const report = await findReportByIdOrCode(req.params.id);
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: `Report not found with id ${req.params.id}`,
+          details: null,
+        },
+      });
+    }
+
+    const isTeamObjectId = mongoose.Types.ObjectId.isValid(rescueTeamId);
+    const team = isTeamObjectId
+      ? await RescueTeam.findById(rescueTeamId)
+      : await RescueTeam.findOne({ $or: [{ teamCode: rescueTeamId }, { teamName: rescueTeamId }] });
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: `Rescue team not found with id ${rescueTeamId}`,
+          details: null,
+        },
+      });
+    }
+
+    // Automatically create or update linked emergency
+    let emergency = null;
+    if (report.emergencyRequest) {
+      emergency = await EmergencyRequest.findById(report.emergencyRequest);
+    }
+
+    if (!emergency) {
+      emergency = await EmergencyRequest.create({
+        user: report.user || null,
+        requestType: 'RESCUE_REQUIRED',
+        category: 'Field Hazard Dispatch',
+        location: report.location,
+        address: report.address || 'Reported Hazard Location',
+        totalPeople: 1,
+        waterSeverity: report.waterLevel || 'HIGH',
+        roadAccess: report.roadStatus || 'BLOCKED',
+        description: `Dispatched for verified hazard report (${report.reportId || report._id}): ${report.description || 'Action required at hazard site'}`,
+        priorityScore: report.waterLevel === 'SEVERE' ? 95 : report.waterLevel === 'HIGH' ? 85 : 70,
+        priorityLevel: report.waterLevel === 'SEVERE' ? 'CRITICAL' : report.waterLevel === 'HIGH' ? 'HIGH' : 'MEDIUM',
+        status: 'DISPATCHED',
+        assignedTeam: team._id,
+      });
+      report.emergencyRequest = emergency._id;
+    } else {
+      emergency.assignedTeam = team._id;
+      emergency.status = 'DISPATCHED';
+    }
+
+    const operatorId = req.user ? (req.user._id || req.user.id) : null;
+    const directNoteMsg = typeof notes === 'string' && notes.trim()
+      ? notes.trim()
+      : 'Assigned to hazard report by State Command Center';
+
+    const assignment = await RescueAssignment.create({
+      emergencyRequest: emergency._id,
+      rescueTeam: team._id,
+      assignedBy: operatorId,
+      assignmentStatus: 'ASSIGNED',
+      assignedAt: new Date(),
+      estimatedEtaMinutes: Number(estimatedEtaMinutes) || 15,
+      notes: [{ message: directNoteMsg, createdBy: operatorId, createdAt: new Date() }],
+    });
+
+    emergency.activeAssignment = assignment._id;
+    await emergency.save();
+
+    team.status = 'DEPLOYED';
+    await team.save();
+
+    report.assignedTeam = team._id;
+    report.assignedTeamName = team.teamName;
+    if (report.verificationStatus === 'PENDING') {
+      report.verificationStatus = 'VERIFIED';
+    }
+    await report.save();
+
+    // Create Audit Log
+    await AuditLog.create({
+      user: req.user ? req.user._id : null,
+      actorRole: req.user?.role || 'admin',
+      action: 'RESCUE_DISPATCHED_TO_REPORT',
+      entityType: 'CitizenReport',
+      entityId: report._id,
+      details: {
+        teamId: team._id,
+        teamName: team.teamName,
+        emergencyId: emergency._id,
+        notes,
+      },
+    }).catch((err) => logger.warn(`AuditLog warning: ${err.message}`));
+
+    // Emit Socket.IO events
+    notifyNewEmergency(emergency);
+    notifyEmergencyAssigned(emergency, assignment, team);
+    notifyReportUpdated(report);
+
+    return res.status(200).json({
+      success: true,
+      message: `Rescue team ${team.teamName} successfully assigned to report location`,
+      data: {
+        reportId: report._id,
+        assignedTeam: {
+          id: team._id,
+          teamName: team.teamName,
+          teamCode: team.teamCode,
+        },
+        emergencyId: emergency._id,
       },
     });
   } catch (error) {
@@ -423,7 +654,9 @@ const getMyReports = async (req, res, next) => {
       return next(new ErrorResponse('Not authorized to access reports', 401));
     }
 
-    const reports = await CitizenReport.find({ user: userId }).sort({ createdAt: -1 });
+    const reports = await CitizenReport.find({ user: userId })
+      .populate('assignedTeam', 'teamName teamCode status phone')
+      .sort({ createdAt: -1 });
     return successResponse(res, reports, 'Citizen reports retrieved successfully');
   } catch (error) {
     next(error);
@@ -447,17 +680,30 @@ const getAllReports = async (req, res, next) => {
     }
 
     const reports = await CitizenReport.find(query)
-      .populate('user', 'fullName')
+      .populate('user', 'fullName phone')
+      .populate('assignedTeam', 'teamName teamCode status phone')
       .sort({ createdAt: -1 });
 
     const formatted = reports.map((r) => {
       const obj = r.toObject();
       obj.id = r._id;
-      obj.reportId = r._id;
+      obj.reportId = r.reportId || r._id;
       obj.submittedWaterLevel = r.waterLevel;
       obj.submittedRoadStatus = r.roadStatus;
       obj.submittedAt = r.createdAt;
       obj.citizenName = r.user?.fullName || 'Citizen Ground Reporter';
+      if (r.assignedTeam) {
+        obj.assignedTeam = {
+          id: r.assignedTeam._id,
+          teamName: r.assignedTeam.teamName,
+          teamCode: r.assignedTeam.teamCode,
+          status: r.assignedTeam.status,
+        };
+      } else if (r.assignedTeamName) {
+        obj.assignedTeam = {
+          teamName: r.assignedTeamName,
+        };
+      }
       if (r.location && r.location.coordinates) {
         obj.lng = r.location.coordinates[0];
         obj.lat = r.location.coordinates[1];
@@ -478,7 +724,7 @@ const getAllReports = async (req, res, next) => {
  */
 const getReportById = async (req, res, next) => {
   try {
-    const report = await CitizenReport.findById(req.params.id).populate('user', 'fullName');
+    const report = await findReportByIdOrCode(req.params.id);
     if (!report) {
       return next(new ErrorResponse(`Report not found with id ${req.params.id}`, 404));
     }
@@ -503,7 +749,7 @@ const getReportById = async (req, res, next) => {
  */
 const deleteReport = async (req, res, next) => {
   try {
-    const report = await CitizenReport.findById(req.params.id);
+    const report = await findReportByIdOrCode(req.params.id);
     if (!report) {
       return next(new ErrorResponse(`Report not found with id ${req.params.id}`, 404));
     }
@@ -514,7 +760,7 @@ const deleteReport = async (req, res, next) => {
       );
     }
 
-    await CitizenReport.findByIdAndDelete(req.params.id);
+    await CitizenReport.findByIdAndDelete(report._id);
     return successResponse(res, null, 'Report deleted successfully');
   } catch (error) {
     next(error);
@@ -549,6 +795,7 @@ module.exports = {
   createReport,
   getPendingReports,
   verifyReport,
+  assignRescueTeamToReport,
   getMyReports,
   getAllReports,
   getReportById,

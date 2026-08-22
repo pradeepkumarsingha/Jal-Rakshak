@@ -49,12 +49,32 @@ export const reportApi = {
     }
   },
 
-  verifyReport: async (reportId, action, notes = '') => {
+  verifyReport: async (reportId, action, notes = '', options = {}) => {
     try {
-      const res = await api.post(`/api/v1/reports/${reportId}/verify`, { action, notes })
+      const payload = {
+        action,
+        notes,
+        rescueTeamId: options.rescueTeamId,
+        estimatedEtaMinutes: options.estimatedEtaMinutes,
+      }
+      const res = await api.post(`/api/v1/reports/${reportId}/verify`, payload)
       return res.data
     } catch (err) {
       console.error(`Verify report ${reportId} failed:`, err.response?.data || err.message)
+      throw err
+    }
+  },
+
+  assignRescueTeam: async (reportId, { rescueTeamId, estimatedEtaMinutes = 15, notes = '' }) => {
+    try {
+      const res = await api.post(`/api/v1/reports/${reportId}/assign-rescue`, {
+        rescueTeamId,
+        estimatedEtaMinutes,
+        notes,
+      })
+      return res.data
+    } catch (err) {
+      console.error(`Assign rescue team to report ${reportId} failed:`, err.response?.data || err.message)
       throw err
     }
   },

@@ -1,6 +1,8 @@
 const express = require('express');
 const {
   getTeams,
+  getMyTeam,
+  switchMyTeam,
   createTeam,
   getAssignments,
   getAssignmentById,
@@ -8,13 +10,15 @@ const {
   updateTeamStatus,
   updateTeamLocation,
 } = require('../controllers/rescueController');
-const { protect } = require('../middleware/auth');
+const { protect, optionalAuth } = require('../middleware/auth');
 const { authorize } = require('../middleware/roleCheck');
 
 const router = express.Router();
 
 // Rescue Teams
-router.get('/teams', protect, authorize('admin', 'rescue'), getTeams);
+router.get('/my-team', protect, authorize('admin', 'rescue'), getMyTeam);
+router.post('/switch-team', protect, authorize('admin', 'rescue'), switchMyTeam);
+router.get('/teams', optionalAuth, getTeams);
 router.post('/teams', protect, authorize('admin'), createTeam);
 router.patch('/teams/:id/status', protect, authorize('admin', 'rescue'), updateTeamStatus);
 router.patch('/teams/:id/location', protect, authorize('rescue'), updateTeamLocation);

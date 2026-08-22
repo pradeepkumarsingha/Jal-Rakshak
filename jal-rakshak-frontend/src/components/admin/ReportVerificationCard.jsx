@@ -12,13 +12,28 @@ import {
   Info,
   Maximize2,
   X,
+  LifeBuoy,
+  Send,
+  Users,
+  Radio,
 } from 'lucide-react'
 
-export default function ReportVerificationCard({ report, onVerify }) {
+export default function ReportVerificationCard({
+  report,
+  onVerify,
+  onAssignRescue,
+  availableTeams = [],
+}) {
   const [modalOpen, setModalOpen] = useState(false)
   const [verifyNotes, setVerifyNotes] = useState('')
   const [showNotesModal, setShowNotesModal] = useState(false)
+  const [showDirectAssignModal, setShowDirectAssignModal] = useState(false)
   const [selectedAction, setSelectedAction] = useState(null)
+
+  // Rescue dispatch options
+  const [assignRescueSquad, setAssignRescueSquad] = useState(false)
+  const [selectedTeamId, setSelectedTeamId] = useState('')
+  const [estimatedEta, setEstimatedEta] = useState(15)
 
   if (!report) return null
 
@@ -28,20 +43,48 @@ export default function ReportVerificationCard({ report, onVerify }) {
     'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80'
 
   const ai = report.aiAnalysis || {}
-  const status = report.verificationStatus || report.status || 'PENDING'
+  const status = (report.verificationStatus || report.status || 'PENDING').toUpperCase()
+  const assignedTeamName = report.assignedTeam?.teamName || report.assignedTeamName
 
   const handleActionClick = (action) => {
     setSelectedAction(action)
+    if (action === 'ESCALATE') {
+      setAssignRescueSquad(true)
+    } else {
+      setAssignRescueSquad(false)
+    }
+    if (availableTeams.length > 0 && !selectedTeamId) {
+      setSelectedTeamId(availableTeams[0]._id || availableTeams[0].id)
+    }
     setShowNotesModal(true)
   }
 
   const handleConfirmAction = () => {
     if (onVerify && selectedAction) {
-      onVerify(report.reportId || report.id, selectedAction, verifyNotes)
+      const options = {}
+      if (assignRescueSquad && selectedTeamId) {
+        options.rescueTeamId = selectedTeamId
+        options.estimatedEtaMinutes = Number(estimatedEta) || 15
+      }
+      onVerify(report._id || report.id || report.reportId, selectedAction, verifyNotes, options)
     }
     setShowNotesModal(false)
     setVerifyNotes('')
     setSelectedAction(null)
+    setAssignRescueSquad(false)
+  }
+
+  const handleDirectAssignConfirm = (e) => {
+    e.preventDefault()
+    if (onAssignRescue && selectedTeamId) {
+      onAssignRescue(report._id || report.id || report.reportId, {
+        rescueTeamId: selectedTeamId,
+        estimatedEtaMinutes: Number(estimatedEta) || 15,
+        notes: verifyNotes || 'Tactical team dispatched to verified ground report',
+      })
+    }
+    setShowDirectAssignModal(false)
+    setVerifyNotes('')
   }
 
   return (
@@ -54,13 +97,15 @@ export default function ReportVerificationCard({ report, onVerify }) {
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer"
           onClick={() => setModalOpen(true)}
         />
-        <div className={`absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-xs text-[10px] font-mono border flex items-center gap-1 ${
-          ai.floodDetected === false 
-            ? 'text-rose-400 border-rose-500/30' 
-            : 'text-cyan-300 border-cyan-500/30'
-        }`}>
+        <div
+          className={`absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-xs text-[10px] font-mono border flex items-center gap-1 ${
+            ai.floodDetected === false
+              ? 'text-rose-400 border-rose-500/30'
+              : 'text-cyan-300 border-cyan-500/30'
+          }`}
+        >
           <Sparkles className="w-3 h-3" />
-          <span>AI Severity: {ai.floodDetected === false ? 'FALSE' : (ai.severity || 'UNKNOWN')}</span>
+          <span>AI Severity: {ai.floodDetected === false ? 'FALSE' : ai.severity || 'UNKNOWN'}</span>
         </div>
         <button
           type="button"
@@ -76,7 +121,7 @@ export default function ReportVerificationCard({ report, onVerify }) {
       <div className="flex-1 flex flex-col justify-between space-y-3">
         <div>
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-bold">
                 {report.reportId || report.id}
               </span>
@@ -93,6 +138,13 @@ export default function ReportVerificationCard({ report, onVerify }) {
               >
                 {status}
               </span>
+
+              {assignedTeamName && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                  <LifeBuoy className="w-3 h-3 text-cyan-400" />
+                  <span>Assigned: {assignedTeamName}</span>
+                </span>
+              )}
             </div>
             <span className="text-[11px] text-slate-400 flex items-center gap-1">
               <Clock className="w-3 h-3" /> {formatTimeAgo(report.submittedAt || report.createdAt)}
@@ -101,7 +153,11 @@ export default function ReportVerificationCard({ report, onVerify }) {
 
           <p className="text-xs text-slate-300 flex items-center gap-1 mt-1.5 font-medium">
             <MapPin className="w-3.5 h-3.5 text-brand-400 shrink-0" />
-            <span>{report.location?.address || report.address || (typeof report.location === 'string' ? report.location : 'Location')}</span>
+            <span>
+              {report.location?.address ||
+                report.address ||
+                (typeof report.location === 'string' ? report.location : 'Ground Location')}
+            </span>
           </p>
 
           <div className="mt-2.5 p-3 bg-slate-950/80 rounded-xl border border-slate-800/80 text-xs space-y-2">
@@ -117,11 +173,15 @@ export default function ReportVerificationCard({ report, onVerify }) {
               </div>
               <div>
                 <span className="text-slate-400 block text-[10px]">AI Road Estimate</span>
-                <strong className="text-cyan-400">{ai.floodDetected === false ? 'N/A' : (ai.roadCondition || 'UNKNOWN')}</strong>
+                <strong className="text-cyan-400">
+                  {ai.floodDetected === false ? 'N/A' : ai.roadCondition || 'UNKNOWN'}
+                </strong>
               </div>
               <div>
                 <span className="text-slate-400 block text-[10px]">Confidence</span>
-                <strong className="text-emerald-400">{ai.confidence ? `${(ai.confidence * 100).toFixed(0)}%` : 'N/A'}</strong>
+                <strong className="text-emerald-400">
+                  {ai.confidence ? `${(ai.confidence * 100).toFixed(0)}%` : 'N/A'}
+                </strong>
               </div>
             </div>
           </div>
@@ -130,42 +190,83 @@ export default function ReportVerificationCard({ report, onVerify }) {
           {ai.floodDetected === false ? (
             <div className="mt-2 flex items-center gap-1.5 text-[11px] text-rose-300 bg-rose-950/40 px-2.5 py-1.5 rounded-lg border border-rose-500/30">
               <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
-              <span><strong>AI Verification Failed:</strong> {ai.message || ai.rawResponse?.message || 'This image does not contain a genuine flood.'}</span>
+              <span>
+                <strong>AI Verification Alert:</strong>{' '}
+                {ai.message || ai.rawResponse?.message || 'This image does not contain genuine flood water.'}
+              </span>
             </div>
           ) : (
             <div className="mt-2 flex items-center gap-1.5 text-[11px] text-amber-300/80 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
               <Info className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span>AI model output is an estimate. Administrator ground verification is required.</span>
+              <span>AI output is estimated. Administrator verification & squad assignment enabled.</span>
             </div>
           )}
         </div>
 
-        {/* Verification Actions */}
-        {status === 'PENDING' && (
-          <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2 flex-wrap">
-            <button
-              onClick={() => handleActionClick('REJECT')}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs font-semibold flex items-center gap-1 transition"
-            >
-              <XCircle className="w-3.5 h-3.5 text-red-400" />
-              <span>Reject / False Report</span>
-            </button>
-            <button
-              onClick={() => handleActionClick('ESCALATE')}
-              className="px-3.5 py-1.5 rounded-xl bg-red-600/90 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1 transition shadow"
-            >
-              <ShieldAlert className="w-3.5 h-3.5" />
-              <span>Escalate Incident</span>
-            </button>
-            <button
-              onClick={() => handleActionClick('VERIFY')}
-              className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 transition shadow-md shadow-emerald-600/20"
-            >
-              <CheckCircle className="w-3.5 h-3.5" />
-              <span>Verify & Broadcast</span>
-            </button>
+        {/* Verification & Rescue Actions */}
+        <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            {assignedTeamName ? (
+              <span className="text-[11px] text-cyan-400 font-semibold flex items-center gap-1">
+                <CheckCircle className="w-3.5 h-3.5" />
+                <span>Rescue Unit Dispatched to Location</span>
+              </span>
+            ) : status === 'VERIFIED' || status === 'ESCALATED' ? (
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                <span>Location confirmed on Tactical GIS layer</span>
+              </span>
+            ) : null}
           </div>
-        )}
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {status === 'PENDING' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleActionClick('REJECT')}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                >
+                  <XCircle className="w-3.5 h-3.5 text-red-400" />
+                  <span>Reject</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleActionClick('ESCALATE')}
+                  className="px-3.5 py-1.5 rounded-xl bg-red-600/90 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1 transition shadow cursor-pointer"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  <span>Escalate & Dispatch</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleActionClick('VERIFY')}
+                  className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 transition shadow-md shadow-emerald-600/20 cursor-pointer"
+                >
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  <span>Verify & Assign Rescue</span>
+                </button>
+              </>
+            ) : (
+              !assignedTeamName &&
+              (status === 'VERIFIED' || status === 'ESCALATED') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (availableTeams.length > 0 && !selectedTeamId) {
+                      setSelectedTeamId(availableTeams[0]._id || availableTeams[0].id)
+                    }
+                    setShowDirectAssignModal(true)
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold flex items-center gap-1.5 transition shadow cursor-pointer"
+                >
+                  <LifeBuoy className="w-3.5 h-3.5" />
+                  <span>Assign Rescue Squad</span>
+                </button>
+              )
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Photo Lightbox Modal */}
@@ -178,8 +279,9 @@ export default function ReportVerificationCard({ report, onVerify }) {
                 <p className="text-xs text-slate-400 font-mono">{report.reportId || report.id}</p>
               </div>
               <button
+                type="button"
                 onClick={() => setModalOpen(false)}
-                className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
+                className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -188,7 +290,7 @@ export default function ReportVerificationCard({ report, onVerify }) {
               <img src={imageUrl} alt="Hazard full resolution" className="max-h-[65vh] object-contain rounded-xl" />
             </div>
             <div className="p-3 bg-slate-950 text-xs text-slate-300 flex items-center justify-between">
-              <span>Cloudinary URL: {imageUrl.slice(0, 50)}...</span>
+              <span>Cloudinary Storage: Verified Ground Intelligence</span>
               <a
                 href={imageUrl}
                 target="_blank"
@@ -203,54 +305,130 @@ export default function ReportVerificationCard({ report, onVerify }) {
         </div>
       )}
 
-      {/* Confirmation & Note Modal */}
+      {/* Verification & Rescue Dispatch Confirmation Modal */}
       {showNotesModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 text-white shadow-2xl space-y-4">
-            <h4 className="font-extrabold text-base flex items-center gap-2">
-              {selectedAction === 'VERIFY' ? (
-                <CheckCircle className="w-5 h-5 text-emerald-400" />
-              ) : selectedAction === 'ESCALATE' ? (
-                <ShieldAlert className="w-5 h-5 text-red-400" />
-              ) : (
-                <XCircle className="w-5 h-5 text-slate-400" />
-              )}
-              <span>Confirm {selectedAction} Action</span>
-            </h4>
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 text-white shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h4 className="font-extrabold text-base flex items-center gap-2">
+                {selectedAction === 'VERIFY' ? (
+                  <CheckCircle className="w-5 h-5 text-emerald-400" />
+                ) : selectedAction === 'ESCALATE' ? (
+                  <ShieldAlert className="w-5 h-5 text-red-400" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-slate-400" />
+                )}
+                <span>
+                  {selectedAction === 'VERIFY'
+                    ? 'Verify Report & Dispatch Rescue'
+                    : selectedAction === 'ESCALATE'
+                    ? 'Escalate Incident & Dispatch Squad'
+                    : 'Reject Report'}
+                </span>
+              </h4>
+              <button
+                type="button"
+                onClick={() => setShowNotesModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
             <p className="text-xs text-slate-400">
               {selectedAction === 'VERIFY'
-                ? 'Approving will make this hazard point visible on public risk layers and route guidance.'
+                ? 'Approving confirms this flood hazard on the live GIS situational map and allows assigning a rescue squad directly to this location.'
                 : selectedAction === 'ESCALATE'
-                ? 'Escalating flags this report for immediate tactical rescue review.'
-                : 'Rejecting will hide this report from public maps.'}
+                ? 'Escalates this report to high-priority disaster status and automatically dispatches a rescue team to the site.'
+                : 'Rejecting marks this report as invalid and excludes it from public warnings.'}
             </p>
+
+            {/* Rescue Assignment Option for Verify and Escalate */}
+            {selectedAction !== 'REJECT' && (
+              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-cyan-300">
+                  <input
+                    type="checkbox"
+                    checked={assignRescueSquad}
+                    onChange={(e) => setAssignRescueSquad(e.target.checked)}
+                    className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 bg-slate-800 border-slate-700"
+                  />
+                  <span>🚒 Assign & Dispatch Tactical Rescue Squad to this Location</span>
+                </label>
+
+                {assignRescueSquad && (
+                  <div className="space-y-3 pt-2 border-t border-slate-800 text-xs">
+                    <div>
+                      <label className="block text-slate-400 mb-1 font-semibold">Select Rescue Squad *</label>
+                      <select
+                        value={selectedTeamId}
+                        onChange={(e) => setSelectedTeamId(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs outline-none focus:ring-2 focus:ring-brand-500 font-medium"
+                      >
+                        {availableTeams.length > 0 ? (
+                          availableTeams.map((t) => (
+                            <option key={t._id || t.id} value={t._id || t.id}>
+                              {t.teamName} ({t.teamCode || 'SQUAD'}) - Status: {t.status || 'AVAILABLE'}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="">No rescue squads loaded</option>
+                        )}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-slate-400 mb-1 font-semibold">Estimated ETA (Mins)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="180"
+                          value={estimatedEta}
+                          onChange={(e) => setEstimatedEta(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs outline-none focus:ring-2 focus:ring-brand-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-400 mb-1 font-semibold">Target Location</label>
+                        <input
+                          type="text"
+                          disabled
+                          value={report.location?.address || report.address || 'Hazard Location'}
+                          className="w-full px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700/50 text-slate-400 text-xs truncate"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="text-xs font-bold text-slate-300 block mb-1">
-                Verification / Operator Notes (Optional)
+                Verification & Tactical Dispatch Notes (Optional)
               </label>
               <textarea
                 rows={3}
                 value={verifyNotes}
                 onChange={(e) => setVerifyNotes(e.target.value)}
-                placeholder="e.g., Confirmed with local ward volunteer; flood surge confirmed..."
+                placeholder="e.g. Ground inundation verified at 1.2m depth; NDRF squad dispatched for barrier evacuation..."
                 className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
               <button
                 type="button"
                 onClick={() => setShowNotesModal(false)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold"
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmAction}
-                className={`px-5 py-2 rounded-xl text-xs font-bold text-white shadow-lg ${
+                className={`px-5 py-2 rounded-xl text-xs font-bold text-white shadow-lg cursor-pointer flex items-center gap-1.5 ${
                   selectedAction === 'VERIFY'
                     ? 'bg-emerald-600 hover:bg-emerald-700'
                     : selectedAction === 'ESCALATE'
@@ -258,9 +436,101 @@ export default function ReportVerificationCard({ report, onVerify }) {
                     : 'bg-slate-700 hover:bg-slate-600'
                 }`}
               >
-                Confirm {selectedAction}
+                <Send className="w-3.5 h-3.5" />
+                <span>Confirm {selectedAction}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Rescue Assignment Modal for Verified Reports */}
+      {showDirectAssignModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 text-white shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h4 className="font-extrabold text-base flex items-center gap-2 text-cyan-300">
+                <LifeBuoy className="w-5 h-5 text-cyan-400" />
+                <span>Dispatch Rescue Squad to Location</span>
+              </h4>
+              <button
+                type="button"
+                onClick={() => setShowDirectAssignModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Assign an active rescue squad to the verified ground coordinates at{' '}
+              <strong className="text-white">
+                {report.location?.address || report.address || 'Hazard Location'}
+              </strong>
+              .
+            </p>
+
+            <form onSubmit={handleDirectAssignConfirm} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">Select Rescue Squad *</label>
+                <select
+                  value={selectedTeamId}
+                  onChange={(e) => setSelectedTeamId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs outline-none focus:ring-2 focus:ring-brand-500 font-medium"
+                  required
+                >
+                  {availableTeams.length > 0 ? (
+                    availableTeams.map((t) => (
+                      <option key={t._id || t.id} value={t._id || t.id}>
+                        {t.teamName} ({t.teamCode || 'SQUAD'}) - Status: {t.status || 'AVAILABLE'}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No rescue squads available</option>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">Estimated ETA (Minutes)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="180"
+                  value={estimatedEta}
+                  onChange={(e) => setEstimatedEta(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">Dispatch Operational Instructions</label>
+                <textarea
+                  rows={3}
+                  value={verifyNotes}
+                  onChange={(e) => setVerifyNotes(e.target.value)}
+                  placeholder="e.g. Approach from Sector 4 high embankment; evacuate 2 stranded households..."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowDirectAssignModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold shadow-lg shadow-cyan-600/30 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Dispatch Rescue Squad</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

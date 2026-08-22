@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { floodApi } from '../services/floodApi'
+import { emergencyApi } from '../services/emergencyApi'
+import { reportApi } from '../services/reportApi'
+import { shelterApi } from '../services/shelterApi'
+import { getSocket } from '../services/socket'
 import {
   INITIAL_RIVERS,
   INITIAL_FORECAST_TIMELINE,
@@ -28,10 +32,11 @@ export function FloodDataProvider({ children }) {
   const [rivers, setRivers] = useState([])
   const [forecastTimeline, setForecastTimeline] = useState([])
   const [shelters, setShelters] = useState(INITIAL_SHELTERS)
-  const [reports, setReports] = useState(INITIAL_REPORTS)
-  const [emergencies, setEmergencies] = useState(INITIAL_EMERGENCIES)
+  const [reports, setReports] = useState([])
+  const [emergencies, setEmergencies] = useState([])
   const [rescueTeams, setRescueTeams] = useState(INITIAL_RESCUE_TEAMS)
   const [riskZones] = useState(RISK_POLYGONS)
+  const [loadingData, setLoadingData] = useState(false)
 
   // Fetch real-time river telemetry helper
   const fetchLiveRivers = useCallback(async (isSim = false) => {
@@ -40,6 +45,36 @@ export function FloodDataProvider({ children }) {
       setRivers(liveRivers)
     } catch (err) {
       console.warn('Error loading live rivers telemetry:', err)
+    }
+  }, [])
+
+  // Fetch real-time MongoDB entities (Emergencies, Reports, Shelters, Teams)
+  const fetchLiveDatabaseData = useCallback(async () => {
+    setLoadingData(true)
+    try {
+      const [emRes, repRes, shRes, tmRes] = await Promise.allSettled([
+        emergencyApi.getAllRequests(),
+        reportApi.getAllReports(),
+        shelterApi.getAllShelters(),
+        emergencyApi.getAvailableRescueTeams(),
+      ])
+
+      if (emRes.status === 'fulfilled' && Array.isArray(emRes.value)) {
+        setEmergencies(emRes.value)
+      }
+      if (repRes.status === 'fulfilled' && Array.isArray(repRes.value)) {
+        setReports(repRes.value)
+      }
+      if (shRes.status === 'fulfilled' && Array.isArray(shRes.value) && shRes.value.length > 0) {
+        setShelters(shRes.value)
+      }
+      if (tmRes.status === 'fulfilled' && Array.isArray(tmRes.value) && tmRes.value.length > 0) {
+        setRescueTeams(tmRes.value)
+      }
+    } catch (err) {
+      console.warn('Error loading live MongoDB entities:', err)
+    } finally {
+      setLoadingData(false)
     }
   }, [])
 
@@ -72,6 +107,8 @@ export function FloodDataProvider({ children }) {
           { time: '+18h', timeLabel: '12:00', rainMm: 6, waterLevel: 23.5, riskScore: 18, status: 'LOW', isSimulation: true },
           { time: '+24h', timeLabel: '18:00', rainMm: 2, waterLevel: 23.4, riskScore: 14, status: 'LOW', isSimulation: true },
         ])
+        setEmergencies(INITIAL_EMERGENCIES)
+        setReports(INITIAL_REPORTS)
       } else if (mode === 'simulation-monsoon') {
         setScenario('MONSOON_WARNING')
         setRiskScore(58)
@@ -96,6 +133,8 @@ export function FloodDataProvider({ children }) {
           { time: '+18h', timeLabel: '12:00', rainMm: 12, waterLevel: 25.4, riskScore: 50, status: 'MEDIUM', isSimulation: true },
           { time: '+24h', timeLabel: '18:00', rainMm: 8, waterLevel: 24.8, riskScore: 35, status: 'MODERATE', isSimulation: true },
         ])
+        setEmergencies(INITIAL_EMERGENCIES)
+        setReports(INITIAL_REPORTS)
       } else if (mode === 'simulation-mahanadi') {
         setScenario('FLASH_FLOOD_RED_ALERT')
         setRiskScore(88)
@@ -113,14 +152,17 @@ export function FloodDataProvider({ children }) {
             isSimulation: true,
           }))
         )
+        setEmergencies(INITIAL_EMERGENCIES)
+        setReports(INITIAL_REPORTS)
       } else {
         // LIVE MODE (Default)
         setScenario('LIVE')
         setDataMode('live')
         fetchLiveRivers(false)
+        fetchLiveDatabaseData()
       }
     },
-    [fetchLiveRivers]
+    [fetchLiveRivers, fetchLiveDatabaseData]
   )
 
   // Legacy changeScenario adapter
@@ -139,24 +181,87 @@ export function FloodDataProvider({ children }) {
     [changeDataMode]
   )
 
-  // Fetch real-time river telemetry on mount for live mode
+  // Fetch real-time data on mount for live mode
   useEffect(() => {
     if (dataMode === 'live') {
       fetchLiveRivers(false)
-      const interval = setInterval(() => fetchLiveRivers(false), 5 * 60 * 1000)
-      return () => clearInterval(interval)
+      fetchLiveDatabaseData()
+      const riverInterval = setInterval(() => fetchLiveRivers(false), 5 * 60 * 1000)
+      const dataInterval = setInterval(() => fetchLiveDatabaseData(), 30 * 1000)
+      return () => {
+        clearInterval(riverInterval)
+        clearInterval(dataInterval)
+      }
     }
-  }, [dataMode, fetchLiveRivers])
+  }, [dataMode, fetchLiveRivers, fetchLiveDatabaseData])
+
+  // Real-time Socket.IO synchronization for Live SOS and Citizen Reports
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+
+    const handleNewEmergency = (newSos) => {
+      setEmergencies((prev) => {
+        const id = newSos._id || newSos.id || newSos.emergencyId
+        const filtered = prev.filter((e) => String(e._id || e.id) !== String(id))
+        return [newSos, ...filtered]
+      })
+    }
+
+    const handleEmergencyUpdated = (updated) => {
+      setEmergencies((prev) =>
+        prev.map((e) => {
+          const id = updated._id || updated.id || updated.emergencyId
+          return String(e._id || e.id) === String(id) ? { ...e, ...updated } : e
+        })
+      )
+    }
+
+    const handleNewReport = (newReport) => {
+      setReports((prev) => {
+        const id = newReport.reportId || newReport._id || newReport.id
+        const filtered = prev.filter((r) => String(r.reportId || r._id || r.id) !== String(id))
+        return [newReport, ...filtered]
+      })
+    }
+
+    const handleReportUpdated = (updatedReport) => {
+      setReports((prev) =>
+        prev.map((r) => {
+          const id = updatedReport.reportId || updatedReport._id || updatedReport.id
+          return String(r.reportId || r._id || r.id) === String(id)
+            ? { ...r, ...updatedReport, verificationStatus: updatedReport.verificationStatus || updatedReport.status }
+            : r
+        })
+      )
+    }
+
+    socket.on('emergency:new', handleNewEmergency)
+    socket.on('emergency:assigned', handleEmergencyUpdated)
+    socket.on('emergency:status-updated', handleEmergencyUpdated)
+    socket.on('report:new', handleNewReport)
+    socket.on('report:updated', handleReportUpdated)
+
+    return () => {
+      socket.off('emergency:new', handleNewEmergency)
+      socket.off('emergency:assigned', handleEmergencyUpdated)
+      socket.off('emergency:status-updated', handleEmergencyUpdated)
+      socket.off('report:new', handleNewReport)
+      socket.off('report:updated', handleReportUpdated)
+    }
+  }, [])
 
   // Citizen adds new crowd hazard report
   const addReport = useCallback((newReport) => {
     const reportItem = {
-      id: `REP-${Math.floor(500 + Math.random() * 500)}`,
+      id: newReport._id || `REP-${Math.floor(500 + Math.random() * 500)}`,
+      reportId: newReport.reportId || newReport._id,
       timestamp: new Date().toISOString(),
       verified: false,
+      verificationStatus: 'PENDING',
       aiConfidence: Math.floor(82 + Math.random() * 16),
       aiDetectedDepth: newReport.waterDepth || '0.8 meters',
-      status: 'PENDING_REVIEW',
+      status: 'PENDING',
       ...newReport,
     }
     setReports((prev) => [reportItem, ...prev])
@@ -167,10 +272,10 @@ export function FloodDataProvider({ children }) {
   const verifyReport = useCallback((reportId, action = 'APPROVE') => {
     setReports((prev) =>
       prev.map((r) => {
-        if (r.id === reportId) {
-          if (action === 'APPROVE') return { ...r, verified: true, status: 'VERIFIED' }
-          if (action === 'ESCALATE') return { ...r, verified: true, status: 'ESCALATED_TO_RESCUE' }
-          if (action === 'REJECT') return { ...r, verified: false, status: 'REJECTED' }
+        if (String(r.id || r._id || r.reportId) === String(reportId)) {
+          if (action === 'APPROVE' || action === 'VERIFY') return { ...r, verified: true, verificationStatus: 'VERIFIED', status: 'VERIFIED' }
+          if (action === 'ESCALATE') return { ...r, verified: true, verificationStatus: 'ESCALATED', status: 'ESCALATED' }
+          if (action === 'REJECT') return { ...r, verified: false, verificationStatus: 'REJECTED', status: 'REJECTED' }
         }
         return r
       })
@@ -180,10 +285,11 @@ export function FloodDataProvider({ children }) {
   // Citizen transmits SOS Emergency request
   const addEmergency = useCallback((newEmergency) => {
     const emergencyItem = {
-      id: `SOS-${Math.floor(8800 + Math.random() * 1000)}`,
+      id: newEmergency._id || `SOS-${Math.floor(8800 + Math.random() * 1000)}`,
+      requestId: newEmergency.requestId || newEmergency._id,
       timestamp: new Date().toISOString(),
       assignedTeam: null,
-      status: 'PENDING_ASSIGNMENT',
+      status: 'PENDING',
       etaMinutes: null,
       ...newEmergency,
     }
@@ -195,30 +301,31 @@ export function FloodDataProvider({ children }) {
   const assignEmergency = useCallback((emergencyId, teamName) => {
     setEmergencies((prev) =>
       prev.map((e) =>
-        e.id === emergencyId
+        String(e.id || e._id || e.requestId) === String(emergencyId)
           ? { ...e, assignedTeam: teamName, status: 'DISPATCHED', etaMinutes: Math.floor(10 + Math.random() * 20) }
           : e
       )
     )
   }, [])
 
-  // Rescue updates emergency mission status (DISPATCHED -> ON_SCENE -> RESCUED -> CLOSED)
+  // Rescue updates emergency mission status
   const updateEmergencyStatus = useCallback((emergencyId, nextStatus) => {
     setEmergencies((prev) =>
-      prev.map((e) => (e.id === emergencyId ? { ...e, status: nextStatus } : e))
+      prev.map((e) => (String(e.id || e._id || e.requestId) === String(emergencyId) ? { ...e, status: nextStatus } : e))
     )
   }, [])
 
-  // Admin or Shelter manager updates shelter occupancy
+  // Shelter manager updates shelter occupancy
   const updateShelterOccupancy = useCallback((shelterId, newOccupancy) => {
     setShelters((prev) =>
       prev.map((s) => {
-        if (s.id === shelterId) {
+        if (String(s.id || s._id || s.shelterId) === String(shelterId)) {
           const occ = Math.max(0, Number(newOccupancy))
+          const cap = Number(s.totalCapacity || s.capacity || 1000)
           return {
             ...s,
             currentOccupancy: occ,
-            status: occ >= s.capacity ? 'FULL' : occ >= s.capacity * 0.9 ? 'NEAR_FULL' : 'ACTIVE',
+            status: occ >= cap ? 'FULL' : occ >= cap * 0.9 ? 'NEAR_FULL' : 'ACTIVE',
           }
         }
         return s
@@ -244,10 +351,16 @@ export function FloodDataProvider({ children }) {
         forecastTimeline,
         setForecastTimeline,
         shelters,
+        setShelters,
         reports,
+        setReports,
         emergencies,
+        setEmergencies,
         rescueTeams,
+        setRescueTeams,
         riskZones,
+        loadingData,
+        fetchLiveDatabaseData,
         addReport,
         verifyReport,
         addEmergency,
@@ -260,3 +373,5 @@ export function FloodDataProvider({ children }) {
     </FloodDataContext.Provider>
   )
 }
+
+export default FloodDataContext

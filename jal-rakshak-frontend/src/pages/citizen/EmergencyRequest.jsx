@@ -58,7 +58,7 @@ export default function EmergencyRequest() {
     waterDepth: 'Waist Level (~100 cm)',
     roadAccess: 'BLOCKED',
     description: 'Urgent rescue assistance required due to rapid flood surge.',
-    contactName: user?.fullName || 'Concerned Citizen',
+    contactName: user?.fullName || user?.name || 'Concerned Citizen',
     contactPhone: user?.phone || '+91 9876543210',
     altPhone: '',
   })
