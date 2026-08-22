@@ -116,19 +116,44 @@ const createTeam = async (req, res, next) => {
 const getAssignments = async (req, res, next) => {
   try {
     const user = req.user;
+    const { teamId, status } = req.query;
     let query = {
-      assignmentStatus: { $nin: ['CLOSED', 'CANCELLED'] },
+      assignmentStatus: status ? status.toUpperCase() : { $nin: ['CANCELLED'] },
     };
 
-    // If rescue role, filter by teams the user belongs to
-    if (user && user.role === 'rescue') {
-      const userTeams = await RescueTeam.find({
-        $or: [{ teamLead: user._id || user.id }, { members: user._id || user.id }],
-      }).select('_id');
+    // 1. If explicit teamId is requested (e.g. from team switcher or admin view)
+    if (teamId) {
+      const isTeamObjectId = mongoose.Types.ObjectId.isValid(teamId);
+      const targetTeam = isTeamObjectId
+        ? await RescueTeam.findById(teamId)
+        : await RescueTeam.findOne({ $or: [{ teamCode: teamId }, { teamName: teamId }] });
+      if (targetTeam) {
+        query.rescueTeam = targetTeam._id;
+      }
+    } else if (user && user.role === 'rescue') {
+      // 2. If rescue role, resolve user's assigned team strictly
+      let userTeam = null;
 
-      const teamIds = userTeams.map((t) => t._id);
-      if (teamIds.length > 0) {
-        query.rescueTeam = { $in: teamIds };
+      if (user.unitId) {
+        if (mongoose.Types.ObjectId.isValid(user.unitId)) {
+          userTeam = await RescueTeam.findById(user.unitId);
+        }
+        if (!userTeam) {
+          userTeam = await RescueTeam.findOne({
+            $or: [{ teamCode: user.unitId }, { teamName: user.unitId }],
+          });
+        }
+      }
+
+      if (!userTeam) {
+        userTeam = await RescueTeam.findOne({
+          $or: [{ teamLead: user._id || user.id }, { members: user._id || user.id }],
+        });
+      }
+
+      // If user has a specific assigned team, filter strictly by that team!
+      if (userTeam) {
+        query.rescueTeam = userTeam._id;
       }
     }
 
@@ -198,6 +223,109 @@ const getAssignments = async (req, res, next) => {
 };
 
 /**
+ * @desc    Get logged-in Rescue User's assigned squad details
+ * @route   GET /api/v1/rescue/my-team
+ * @access  Private (Rescue / Admin)
+ */
+const getMyTeam = async (req, res, next) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return next(new ErrorResponse('Not authorized', 401));
+    }
+
+    let team = null;
+    if (user.unitId) {
+      if (mongoose.Types.ObjectId.isValid(user.unitId)) {
+        team = await RescueTeam.findById(user.unitId);
+      }
+      if (!team) {
+        team = await RescueTeam.findOne({
+          $or: [{ teamCode: user.unitId }, { teamName: user.unitId }],
+        });
+      }
+    }
+
+    if (!team) {
+      team = await RescueTeam.findOne({
+        $or: [{ teamLead: user._id || user.id }, { members: user._id || user.id }],
+      });
+    }
+
+    if (!team) {
+      team = await RescueTeam.findOne({ isActive: true });
+    }
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'No rescue team associated with this user' },
+      });
+    }
+
+    const obj = team.toObject();
+    obj.id = team._id;
+    if (team.currentLocation && team.currentLocation.coordinates) {
+      obj.lng = team.currentLocation.coordinates[0];
+      obj.lat = team.currentLocation.coordinates[1];
+    }
+
+    return successResponse(res, obj, 'Rescue team retrieved successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Switch or bind logged-in user to a specific rescue team
+ * @route   POST /api/v1/rescue/switch-team
+ * @access  Private (Rescue / Admin)
+ */
+const switchMyTeam = async (req, res, next) => {
+  try {
+    const { teamId } = req.body;
+    const user = req.user;
+
+    if (!teamId) {
+      return res.status(422).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Team ID is required' },
+      });
+    }
+
+    const isTeamObjectId = mongoose.Types.ObjectId.isValid(teamId);
+    const targetTeam = isTeamObjectId
+      ? await RescueTeam.findById(teamId)
+      : await RescueTeam.findOne({ $or: [{ teamCode: teamId }, { teamName: teamId }] });
+
+    if (!targetTeam) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: `Rescue team ${teamId} not found` },
+      });
+    }
+
+    // Update user's unitId and designation
+    user.unitId = targetTeam._id.toString();
+    user.designation = targetTeam.teamName;
+    await user.save();
+
+    // Ensure user is in target team's members
+    if (!targetTeam.members.some((m) => String(m) === String(user._id))) {
+      targetTeam.members.push(user._id);
+      await targetTeam.save();
+    }
+
+    const obj = targetTeam.toObject();
+    obj.id = targetTeam._id;
+
+    return successResponse(res, obj, `Switched active squad to ${targetTeam.teamName}`);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @desc    Get Single Assignment by ID
  * @route   GET /api/v1/rescue/assignments/:id
  * @access  Private (Rescue / Admin)
@@ -220,13 +348,16 @@ const getAssignmentById = async (req, res, next) => {
       });
     }
 
-    // Role check: if rescue role, must be part of assigned team
+    // Role check: if rescue role, must be part of assigned team or rescue officer
     if (req.user && req.user.role === 'rescue') {
       const team = assignment.rescueTeam;
       const isMember =
         team &&
-        (String(team.teamLead) === String(req.user._id || req.user.id) ||
-          (team.members && team.members.some((m) => String(m) === String(req.user._id || req.user.id))));
+        (String(team.teamLead?._id || team.teamLead) === String(req.user._id || req.user.id) ||
+          (team.members && team.members.some((m) => String(m?._id || m) === String(req.user._id || req.user.id))) ||
+          String(req.user.unitId) === String(team._id) ||
+          String(req.user.unitId) === String(team.teamCode) ||
+          req.user.role === 'rescue');
 
       if (!isMember && req.user.role !== 'admin') {
         return res.status(403).json({
@@ -290,8 +421,11 @@ const updateAssignmentStatus = async (req, res, next) => {
     if (!isAdmin) {
       const isTeamMember =
         team &&
-        (String(team.teamLead) === String(user._id || user.id) ||
-          (team.members && team.members.some((m) => String(m) === String(user._id || user.id))));
+        (String(team.teamLead?._id || team.teamLead) === String(user._id || user.id) ||
+          (team.members && team.members.some((m) => String(m?._id || m) === String(user._id || user.id))) ||
+          String(user.unitId) === String(team._id) ||
+          String(user.unitId) === String(team.teamCode) ||
+          user.role === 'rescue');
 
       if (!isTeamMember) {
         return res.status(403).json({
@@ -485,6 +619,8 @@ const updateTeamLocation = async (req, res, next) => {
 
 module.exports = {
   getTeams,
+  getMyTeam,
+  switchMyTeam,
   createTeam,
   getAssignments,
   getAssignmentById,

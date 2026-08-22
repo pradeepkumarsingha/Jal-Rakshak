@@ -217,6 +217,7 @@ const register = async (req, res, next) => {
         user: {
           id: user._id,
           fullName: user.fullName,
+          name: user.fullName,
           email: user.email,
           role: user.role,
           phone: user.phone,
@@ -471,6 +472,7 @@ const login = async (req, res, next) => {
         user: {
           id: user._id || user.id,
           fullName: user.fullName,
+          name: user.fullName,
           email: user.email,
           role: user.role,
           phone: user.phone,

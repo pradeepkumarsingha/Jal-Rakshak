@@ -434,7 +434,7 @@ export default function Login() {
                         type="email"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
-                        placeholder="e.g. citizen@demo.jalrakshak.org"
+                        placeholder="e.g. name@example.com"
                         required
                         autoFocus
                         className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500 outline-none text-xs"

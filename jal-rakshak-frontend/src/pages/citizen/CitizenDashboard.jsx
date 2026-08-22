@@ -277,7 +277,7 @@ export default function CitizenDashboard() {
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2">
-            Welcome back, {user?.name || 'Citizen'}
+            Welcome back, {user?.fullName || user?.name || 'Citizen'}
           </h1>
 
           {/* Location details row */}

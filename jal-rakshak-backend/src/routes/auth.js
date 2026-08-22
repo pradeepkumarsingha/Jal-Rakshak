@@ -21,6 +21,14 @@ router.post(
   [
     body('email').isEmail().withMessage('Please provide a valid email address'),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('fullName')
+      .optional({ checkFalsy: true })
+      .matches(/^[a-zA-Z\s.-]+$/)
+      .withMessage('Full name must contain only letters and spaces'),
+    body('phone')
+      .optional({ checkFalsy: true })
+      .matches(/^(\+91)?[0-9]{10}$/)
+      .withMessage('Please provide a valid 10-digit mobile number'),
     validate,
   ],
   register

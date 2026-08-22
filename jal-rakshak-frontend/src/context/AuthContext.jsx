@@ -16,11 +16,21 @@ export const getUserHomePath = (user) => {
   return '/dashboard'
 }
 
+const normalizeUserData = (u) => {
+  if (!u) return null
+  const resolvedName = u.fullName || u.name || (u.email ? u.email.split('@')[0] : '')
+  return {
+    ...u,
+    fullName: resolvedName,
+    name: resolvedName,
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
       const stored = localStorage.getItem('jalrakshak_user')
-      return stored ? JSON.parse(stored) : null
+      return stored ? normalizeUserData(JSON.parse(stored)) : null
     } catch {
       return null
     }
@@ -48,7 +58,7 @@ export function AuthProvider({ children }) {
 
       const responseData = res.data?.data || res.data
       const receivedToken = responseData.accessToken || responseData.token
-      const userData = responseData.user
+      const userData = normalizeUserData(responseData.user)
 
       if (receivedToken) {
         setToken(receivedToken)
@@ -101,7 +111,7 @@ export function AuthProvider({ children }) {
       const res = await api.post('/api/v1/auth/register', userData)
       const responseData = res.data?.data || res.data
       const receivedToken = responseData.accessToken || responseData.token
-      const createdUser = responseData.user
+      const createdUser = normalizeUserData(responseData.user)
 
       if (receivedToken) {
         setToken(receivedToken)

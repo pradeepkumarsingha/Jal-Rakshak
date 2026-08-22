@@ -1,7 +1,9 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useFloodData } from '../../context/FloodDataContext'
+import { emergencyApi } from '../../services/emergencyApi'
+import { getSocket } from '../../services/socket'
 import {
   LayoutDashboard,
   FileCheck2,
@@ -20,21 +22,95 @@ export default function Sidebar() {
   const { user } = useAuth()
   const location = useLocation()
   const { emergencies, reports } = useFloodData()
+  const [rescueActiveCount, setRescueActiveCount] = useState(0)
 
-  const pendingEmergencies = emergencies.filter((e) => e.status === 'PENDING_ASSIGNMENT').length
-  const pendingReports = reports.filter((r) => r.status === 'PENDING_REVIEW').length
+  // Fetch specific rescue missions count for logged in rescue squad
+  useEffect(() => {
+    if (user?.role === 'rescue') {
+      const fetchCount = () => {
+        emergencyApi
+          .getRescueAssignments()
+          .then((res) => {
+            if (Array.isArray(res)) {
+              const active = res.filter((a) =>
+                ['ASSIGNED', 'DISPATCHED', 'EN_ROUTE', 'ON_SCENE', 'IN_PROGRESS'].includes(
+                  (a.assignmentStatus || a.status || '').toUpperCase()
+                )
+              )
+              setRescueActiveCount(active.length)
+            } else {
+              setRescueActiveCount(0)
+            }
+          })
+          .catch(() => {
+            setRescueActiveCount(0)
+          })
+      }
+
+      fetchCount()
+
+      const handleTeamSwitched = () => fetchCount()
+      window.addEventListener('rescue:team-switched', handleTeamSwitched)
+
+      const socket = getSocket()
+      if (socket) {
+        socket.on('rescue:assignment-created', fetchCount)
+        socket.on('rescue:assignment-updated', fetchCount)
+        socket.on('emergency:assigned', fetchCount)
+        socket.on('emergency:status-updated', fetchCount)
+      }
+
+      return () => {
+        window.removeEventListener('rescue:team-switched', handleTeamSwitched)
+        if (socket) {
+          socket.off('rescue:assignment-created', fetchCount)
+          socket.off('rescue:assignment-updated', fetchCount)
+          socket.off('emergency:assigned', fetchCount)
+          socket.off('emergency:status-updated', fetchCount)
+        }
+      }
+    }
+  }, [user, location.pathname, location.key])
+
+  const pendingEmergencies = emergencies.filter(
+    (e) => (e.status || '').toUpperCase() === 'PENDING' || (e.status || '').toUpperCase() === 'PENDING_ASSIGNMENT'
+  ).length
+
+  const pendingReports = reports.filter(
+    (r) =>
+      (r.verificationStatus || r.status || '').toUpperCase() === 'PENDING' ||
+      (r.verificationStatus || r.status || '').toUpperCase() === 'PENDING_REVIEW'
+  ).length
 
   const adminLinks = [
     { name: 'Command Overview', path: '/admin', icon: LayoutDashboard },
-    { name: 'Live SOS Triage', path: '/admin/emergencies', icon: AlertTriangle, badge: pendingEmergencies, badgeColor: 'bg-red-500 text-white' },
-    { name: 'Citizen Report Review', path: '/admin/reports', icon: FileCheck2, badge: pendingReports, badgeColor: 'bg-amber-500 text-white' },
+    {
+      name: 'Live SOS Triage',
+      path: '/admin/emergencies',
+      icon: AlertTriangle,
+      badge: pendingEmergencies,
+      badgeColor: 'bg-red-500 text-white',
+    },
+    {
+      name: 'Citizen Report Review',
+      path: '/admin/reports',
+      icon: FileCheck2,
+      badge: pendingReports,
+      badgeColor: 'bg-amber-500 text-white',
+    },
     { name: 'Shelter Network', path: '/admin/shelters', icon: Home },
     { name: 'Predictive Analytics', path: '/admin/analytics', icon: BarChart3 },
   ]
 
   const rescueLinks = [
     { name: 'Field Operations HQ', path: '/rescue', icon: LifeBuoy },
-    { name: 'Assigned Missions', path: '/rescue/assignments', icon: ClipboardList, badge: emergencies.filter((e) => e.status === 'IN_PROGRESS' || e.status === 'DISPATCHED').length, badgeColor: 'bg-emerald-500 text-white' },
+    {
+      name: 'Assigned Missions',
+      path: '/rescue/assignments',
+      icon: ClipboardList,
+      badge: rescueActiveCount,
+      badgeColor: 'bg-emerald-500 text-white',
+    },
   ]
 
   const links = user?.role === 'rescue' ? rescueLinks : adminLinks
@@ -45,14 +121,18 @@ export default function Sidebar() {
       {/* Portal Header Badge */}
       <div className="p-4 border-b border-slate-800">
         <div className="flex items-center gap-2.5">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white ${isRescue ? 'bg-emerald-600' : 'bg-brand-600'}`}>
+          <div
+            className={`w-9 h-9 rounded-xl flex items-center justify-center text-white ${
+              isRescue ? 'bg-emerald-600' : 'bg-brand-600'
+            }`}
+          >
             {isRescue ? <LifeBuoy className="w-5 h-5" /> : <Shield className="w-5 h-5" />}
           </div>
           <div>
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
               {isRescue ? 'Tactical Unit Portal' : 'State Control Center'}
             </h2>
-            <p className="text-sm font-bold text-white truncate">{user?.name || 'Authorized Officer'}</p>
+            <p className="text-sm font-bold text-white truncate">{user?.fullName || user?.name || 'Authorized Officer'}</p>
           </div>
         </div>
 
@@ -121,9 +201,7 @@ export default function Sidebar() {
           <PhoneCall className="w-3.5 h-3.5 text-red-400" />
           <span>Priority Radio Comms</span>
         </div>
-        <p className="mt-1 text-[10px] text-slate-400">
-          VHF Ch 16 / Sat-Phone: 1078 (Ext 401)
-        </p>
+        <p className="mt-1 text-[10px] text-slate-400">VHF Ch 16 / Sat-Phone: 1078 (Ext 401)</p>
       </div>
     </aside>
   )
