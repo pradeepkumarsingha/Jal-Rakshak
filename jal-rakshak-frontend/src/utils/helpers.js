@@ -9,9 +9,9 @@ export function calculateDistance(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2)
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   return Number((R * c).toFixed(1))
 }
@@ -124,5 +124,25 @@ export function formatLocationText(loc, fallback = 'Location Coordinates') {
     }
   }
   return fallback
+}
+
+export const DEFAULT_HAZARD_IMAGE =
+  'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80'
+
+/**
+ * Safely resolves any report image into a valid web URL or fallback
+ */
+export function formatReportImageUrl(imageSource) {
+  if (!imageSource) return DEFAULT_HAZARD_IMAGE
+  if (typeof imageSource === 'object') {
+    imageSource = imageSource.secureUrl || imageSource.url || imageSource.imageUrl || ''
+  }
+  if (typeof imageSource !== 'string') return DEFAULT_HAZARD_IMAGE
+  const trimmed = imageSource.trim()
+  if (!trimmed) return DEFAULT_HAZARD_IMAGE
+  if (trimmed.startsWith('data:image/') || trimmed.startsWith('blob:')) return trimmed
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed
+  if (trimmed.startsWith('//')) return `https:${trimmed}`
+  return DEFAULT_HAZARD_IMAGE
 }
 

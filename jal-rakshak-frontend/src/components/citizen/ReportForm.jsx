@@ -150,16 +150,20 @@ export default function ReportForm({ onSuccess }) {
             </div>
           </div>
 
-          {submittedReport.image?.secureUrl && (
+          {(submittedReport.image || submittedReport.imageUrl) && (
             <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-950">
               <img
-                src={submittedReport.image.secureUrl}
+                src={formatReportImageUrl(submittedReport.image || submittedReport.imageUrl)}
                 alt="Uploaded report"
+                onError={(e) => {
+                  e.currentTarget.onerror = null
+                  e.currentTarget.src = DEFAULT_HAZARD_IMAGE
+                }}
                 className="w-full h-48 object-cover"
               />
               <div className="p-2.5 text-[11px] text-slate-300 flex items-center justify-between">
-                <span>Cloudinary Verified Storage</span>
-                <span className="font-mono text-emerald-400">Secure HTTPS</span>
+                <span>Verified Ground Observation Image</span>
+                <span className="font-mono text-emerald-400">Secure Storage</span>
               </div>
             </div>
           )}
@@ -273,11 +277,10 @@ export default function ReportForm({ onSuccess }) {
                   key={lvl.id}
                   type="button"
                   onClick={() => setValue('waterLevel', lvl.id)}
-                  className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
-                    selectedWaterLevel === lvl.id
+                  className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${selectedWaterLevel === lvl.id
                       ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-400 text-amber-950 font-bold'
                       : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
+                    }`}
                 >
                   <div className="text-xs font-bold">{lvl.label}</div>
                   <div className="text-[10px] text-slate-500 mt-0.5">{lvl.desc}</div>
@@ -300,11 +303,10 @@ export default function ReportForm({ onSuccess }) {
                   key={rd.id}
                   type="button"
                   onClick={() => setValue('roadStatus', rd.id)}
-                  className={`p-2 rounded-xl border text-center transition cursor-pointer ${
-                    selectedRoadStatus === rd.id
+                  className={`p-2 rounded-xl border text-center transition cursor-pointer ${selectedRoadStatus === rd.id
                       ? 'bg-brand-50 border-brand-500 ring-2 ring-brand-400 text-brand-900 font-bold'
                       : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
+                    }`}
                 >
                   <span className="text-xs font-bold">{rd.label}</span>
                 </button>
