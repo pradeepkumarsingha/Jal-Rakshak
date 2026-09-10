@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import ChatInterface from '../../components/ai/ChatInterface'
 import {
   Bot,
@@ -11,13 +11,14 @@ import {
   Flame,
   MapPin,
   ExternalLink,
-  Zap,
+  MessageSquare,
   Radio,
-  BookOpen,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export default function AIChat() {
+  const [activeMobileTab, setActiveMobileTab] = useState('chat') // 'chat' | 'intel'
+
   const hotlines = [
     { label: 'NDRF Disaster Helpline', number: '1078', badge: 'National', color: 'bg-red-600' },
     { label: 'Unified Emergency SOS', number: '112', badge: '24/7 Police/Medical', color: 'bg-rose-600' },
@@ -32,60 +33,97 @@ export default function AIChat() {
   ]
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 flex flex-col min-h-[calc(100dvh-4.5rem)] lg:min-h-0">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3 sm:mb-5 shrink-0">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-2xl bg-gradient-to-tr from-brand-700 to-cyan-500 text-white shadow-md shadow-brand-500/20">
-              <Bot className="w-5 h-5" />
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="p-1.5 sm:p-2 rounded-2xl bg-gradient-to-tr from-brand-700 to-cyan-500 text-white shadow-md shadow-brand-500/20 shrink-0">
+              <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-2xl font-black text-slate-950 tracking-tight">
                   Jal Rakshak AI Advisor
                 </h1>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold tracking-wide uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Active RAG System
+                  Active RAG
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Real-time disaster intelligence trained on NDMA guidelines, CWC river sensors, and OpenStreetMap relief shelters.
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 line-clamp-1 sm:line-clamp-none">
+                Real-time flood intelligence with CWC river sensors, NDMA guidelines & shelter routing.
               </p>
             </div>
           </div>
         </div>
 
         {/* Quick SOS Shortcut */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
           <Link
             to="/emergency"
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-red-600/30 transition transform active:scale-95"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white text-[11px] sm:text-xs font-black flex items-center gap-1.5 shadow-md shadow-red-600/30 transition transform active:scale-95 shrink-0"
           >
-            <Flame className="w-4 h-4" />
-            <span>Launch SOS Distress Beacon</span>
+            <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Launch SOS Beacon</span>
           </Link>
         </div>
       </div>
 
-      {/* Main Grid: 8 cols Chat Interface, 4 cols Intelligence & Helplines Sidebar */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-[calc(100vh-13rem)] min-h-[640px] max-h-[920px]">
+      {/* Mobile Tab Switcher (< lg screens) */}
+      <div className="flex lg:hidden items-center p-1 bg-slate-200/70 backdrop-blur-xs rounded-2xl mb-3 shrink-0">
+        <button
+          type="button"
+          onClick={() => setActiveMobileTab('chat')}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition ${
+            activeMobileTab === 'chat'
+              ? 'bg-white text-brand-900 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <MessageSquare className="w-3.5 h-3.5 text-cyan-600" />
+          <span>AI Advisor Chat</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveMobileTab('intel')}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition ${
+            activeMobileTab === 'intel'
+              ? 'bg-white text-red-700 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <PhoneCall className="w-3.5 h-3.5 text-red-600" />
+          <span>Helplines & Intel</span>
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-0.5"></span>
+        </button>
+      </div>
+
+      {/* Main Container */}
+      <div className="flex-1 min-h-0 lg:grid lg:grid-cols-12 lg:gap-5 lg:h-[calc(100vh-13rem)] lg:min-h-[640px] lg:max-h-[920px]">
         {/* Chat Interface Column */}
-        <div className="lg:col-span-8 h-full min-h-0 flex flex-col">
-          <ChatInterface />
+        <div
+          className={`h-[calc(100dvh-13.5rem)] sm:h-[calc(100dvh-14rem)] lg:h-full min-h-0 lg:col-span-8 flex flex-col ${
+            activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'
+          }`}
+        >
+          <ChatInterface onOpenIntel={() => setActiveMobileTab('intel')} />
         </div>
 
         {/* Emergency Tactical Intelligence Sidebar */}
-        <div className="lg:col-span-4 h-full min-h-0 flex flex-col gap-4 overflow-y-auto pr-0.5">
+        <div
+          className={`h-full min-h-0 lg:col-span-4 flex flex-col gap-3.5 overflow-y-auto pr-0.5 ${
+            activeMobileTab === 'intel' ? 'flex' : 'hidden lg:flex'
+          }`}
+        >
           {/* 1-Click Emergency Helplines */}
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-4 shadow-sm">
+          <div className="bg-white rounded-3xl border border-slate-200/90 p-3.5 sm:p-4 shadow-sm shrink-0">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
                 <PhoneCall className="w-3.5 h-3.5 text-red-600" />
                 <span>Emergency Hotlines</span>
               </h3>
-              <span className="text-[10px] font-mono text-emerald-600 font-bold">24/7 Available</span>
+              <span className="text-[10px] font-mono text-emerald-600 font-bold">24/7 Toll-Free</span>
             </div>
 
             <div className="grid grid-cols-1 gap-2">
@@ -93,7 +131,7 @@ export default function AIChat() {
                 <a
                   key={i}
                   href={`tel:${h.number.replace(/[^0-9]/g, '')}`}
-                  className="group p-2.5 rounded-2xl bg-slate-50 hover:bg-red-50/80 border border-slate-200 hover:border-red-300 transition flex items-center justify-between cursor-pointer"
+                  className="group p-2.5 rounded-2xl bg-slate-50 hover:bg-red-50/80 border border-slate-200 hover:border-red-300 transition flex items-center justify-between cursor-pointer active:scale-[0.99]"
                 >
                   <div>
                     <div className="flex items-center gap-1.5">
@@ -104,7 +142,7 @@ export default function AIChat() {
                     </div>
                     <span className="font-mono text-xs font-black text-red-600">{h.number}</span>
                   </div>
-                  <span className="p-1.5 rounded-xl bg-red-600 group-hover:bg-red-700 text-white shadow-xs">
+                  <span className="p-2 rounded-xl bg-red-600 group-hover:bg-red-700 text-white shadow-xs">
                     <PhoneCall className="w-3.5 h-3.5" />
                   </span>
                 </a>
@@ -113,14 +151,14 @@ export default function AIChat() {
           </div>
 
           {/* Live River Discharge Gauge Glance */}
-          <div className="bg-slate-950 text-white rounded-3xl p-4 border border-slate-800 shadow-md">
+          <div className="bg-slate-950 text-white rounded-3xl p-3.5 sm:p-4 border border-slate-800 shadow-md shrink-0">
             <div className="flex items-center justify-between mb-2.5">
               <h3 className="font-extrabold text-xs uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
                 <Activity className="w-3.5 h-3.5 text-cyan-400" />
                 <span>CWC River Gauges</span>
               </h3>
               <Link to="/dashboard" className="text-[10px] text-slate-400 hover:text-cyan-300 underline">
-                View Full &rarr;
+                View Live Map &rarr;
               </Link>
             </div>
 
@@ -149,21 +187,21 @@ export default function AIChat() {
           </div>
 
           {/* Quick Life Safety Protocol Card */}
-          <div className="bg-gradient-to-br from-cyan-900/20 via-brand-900/10 to-slate-50 rounded-3xl border border-cyan-200/80 p-4 shadow-sm flex-1">
+          <div className="bg-gradient-to-br from-cyan-900/20 via-brand-900/10 to-slate-50 rounded-3xl border border-cyan-200/80 p-3.5 sm:p-4 shadow-sm flex-1">
             <h3 className="font-extrabold text-xs uppercase tracking-wider text-brand-950 flex items-center gap-1.5 mb-2.5">
               <Droplets className="w-3.5 h-3.5 text-cyan-600" />
               <span>Safe Drinking Water Formula</span>
             </h3>
 
             <div className="space-y-2 text-xs text-slate-700">
-              <div className="p-2 bg-white rounded-xl border border-slate-200/80">
+              <div className="p-2.5 bg-white rounded-xl border border-slate-200/80">
                 <strong className="text-slate-900 block text-[11px]">1. Rolling Boil:</strong>
-                <p className="text-[11px] text-slate-600">Boil water vigorously for minimum <strong>3 minutes</strong> before consuming.</p>
+                <p className="text-[11px] text-slate-600 mt-0.5">Boil water vigorously for minimum <strong>3 minutes</strong> before consuming.</p>
               </div>
 
-              <div className="p-2 bg-white rounded-xl border border-slate-200/80">
+              <div className="p-2.5 bg-white rounded-xl border border-slate-200/80">
                 <strong className="text-slate-900 block text-[11px]">2. Chlorine Disinfection:</strong>
-                <p className="text-[11px] text-slate-600">Add <strong>2 drops</strong> of 5% chlorine bleach per liter. Wait 30 mins before use.</p>
+                <p className="text-[11px] text-slate-600 mt-0.5">Add <strong>2 drops</strong> of 5% chlorine bleach per liter. Wait 30 mins before use.</p>
               </div>
             </div>
 

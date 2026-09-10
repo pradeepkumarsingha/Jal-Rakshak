@@ -11,10 +11,6 @@ import {
   AlertCircle,
   KeyRound,
   CheckCircle2,
-  Copy,
-  Check,
-  Sparkles,
-  ShieldCheck,
 } from 'lucide-react'
 import JalRakshakLogo from '../../components/common/JalRakshakLogo'
 
@@ -37,8 +33,6 @@ export default function Login() {
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotError, setForgotError] = useState('')
   const [forgotSuccess, setForgotSuccess] = useState(false)
-  const [generatedPassword, setGeneratedPassword] = useState('')
-  const [copied, setCopied] = useState(false)
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -93,26 +87,10 @@ export default function Login() {
     }
   }
 
-  const handleFillDemo = (role) => {
-    if (role === 'citizen') {
-      setEmail('ramesh.citizen@jalrakshak.org')
-      setPassword('password123')
-    } else if (role === 'rescue') {
-      setEmail('vikram.ndrf@gov.in')
-      setPassword('password123')
-    } else if (role === 'admin') {
-      setEmail('anita.src@odisha.gov.in')
-      setPassword('password123')
-    }
-    setErrorMessage('')
-  }
-
   const openForgotPassword = () => {
     setForgotEmail(email.trim())
     setForgotError('')
     setForgotSuccess(false)
-    setGeneratedPassword('')
-    setCopied(false)
     setShowForgotModal(true)
   }
 
@@ -251,37 +229,6 @@ export default function Login() {
             )}
           </button>
         </form>
-
-        {/* Demo Credentials Quick-Fill Pill Box */}
-        <div className="mt-6 pt-5 border-t border-slate-100">
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Instant Database Accounts</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => handleFillDemo('citizen')}
-              className="px-2 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-cyan-50 hover:border-cyan-300 text-[11px] font-bold text-slate-700 hover:text-cyan-800 transition text-center"
-            >
-              Citizen
-            </button>
-            <button
-              type="button"
-              onClick={() => handleFillDemo('rescue')}
-              className="px-2 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-[11px] font-bold text-slate-700 hover:text-emerald-800 transition text-center"
-            >
-              Rescue NDRF
-            </button>
-            <button
-              type="button"
-              onClick={() => handleFillDemo('admin')}
-              className="px-2 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 text-[11px] font-bold text-slate-700 hover:text-indigo-800 transition text-center"
-            >
-              State Admin
-            </button>
-          </div>
-        </div>
 
         {/* Footer */}
         <div className="mt-6 text-center text-xs text-slate-500">

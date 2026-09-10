@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Send, Sparkles, Mic, MicOff, X, CornerDownLeft } from 'lucide-react'
+import { Send, Sparkles, Mic, MicOff, X } from 'lucide-react'
 
 export default function ChatInput({ onSend, loading, placeholder = 'Ask Jal Rakshak AI flood advisor...' }) {
   const [text, setText] = useState('')
@@ -67,20 +67,20 @@ export default function ChatInput({ onSend, loading, placeholder = 'Ask Jal Raks
 
   const handleInput = (e) => {
     setText(e.target.value)
-    // Auto-expand up to 120px
+    // Auto-expand up to 100px on mobile
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 100)}px`
     }
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <form
         onSubmit={handleSubmit}
-        className="relative flex items-end gap-2 bg-slate-50/90 border border-slate-300/80 rounded-2xl p-2 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:bg-white transition-all shadow-xs"
+        className="relative flex items-end gap-1.5 sm:gap-2 bg-slate-50/90 border border-slate-300/80 rounded-2xl p-1.5 sm:p-2 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:bg-white transition-all shadow-2xs"
       >
-        <div className="relative flex-1 flex items-center min-h-[44px]">
+        <div className="relative flex-1 flex items-center min-h-[40px] sm:min-h-[44px]">
           <textarea
             ref={textareaRef}
             rows={1}
@@ -89,14 +89,14 @@ export default function ChatInput({ onSend, loading, placeholder = 'Ask Jal Raks
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={loading}
-            className="w-full resize-none bg-transparent px-3 py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 outline-none leading-relaxed max-h-[120px]"
+            className="w-full resize-none bg-transparent px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 outline-none leading-relaxed max-h-[100px]"
           />
 
           {text && (
             <button
               type="button"
               onClick={() => setText('')}
-              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition shrink-0"
+              className="p-1 sm:p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition shrink-0"
               title="Clear input"
             >
               <X className="w-3.5 h-3.5" />
@@ -104,20 +104,20 @@ export default function ChatInput({ onSend, loading, placeholder = 'Ask Jal Raks
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0 pb-0.5">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 pb-0.5">
           {/* Voice Input Button */}
           {window.SpeechRecognition || window.webkitSpeechRecognition ? (
             <button
               type="button"
               onClick={toggleSpeech}
               title={isListening ? 'Stop listening' : 'Speak your question'}
-              className={`p-2.5 rounded-xl transition ${
+              className={`p-2 sm:p-2.5 rounded-xl transition ${
                 isListening
                   ? 'bg-red-500 text-white animate-pulse'
                   : 'text-slate-500 hover:text-brand-600 hover:bg-slate-200/60'
               }`}
             >
-              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              {isListening ? <MicOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             </button>
           ) : null}
 
@@ -125,22 +125,22 @@ export default function ChatInput({ onSend, loading, placeholder = 'Ask Jal Raks
           <button
             type="submit"
             disabled={!text.trim() || loading}
-            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm shadow-brand-600/30 cursor-pointer disabled:cursor-not-allowed transform active:scale-95"
-            title="Send (Press Enter)"
+            className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white font-bold text-xs flex items-center gap-1 sm:gap-1.5 transition shadow-sm shadow-brand-600/30 cursor-pointer disabled:cursor-not-allowed transform active:scale-95"
+            title="Send"
           >
             <span>Ask</span>
-            <Send className="w-3.5 h-3.5" />
+            <Send className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           </button>
         </div>
       </form>
 
-      <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
-        <span className="flex items-center gap-1">
-          <Sparkles className="w-3 h-3 text-cyan-600" />
-          <span>Jal Rakshak AI • Live River Telemetry & NDMA Protocols</span>
+      <div className="flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400 px-1">
+        <span className="flex items-center gap-1 truncate">
+          <Sparkles className="w-3 h-3 text-cyan-600 shrink-0" />
+          <span className="truncate">Jal Rakshak AI • Live River Telemetry</span>
         </span>
-        <span className="hidden sm:inline font-mono text-[10px]">
-          Press <kbd className="bg-slate-200 text-slate-700 px-1 py-0.5 rounded font-bold text-[9px]">Enter ↵</kbd> to send
+        <span className="hidden sm:inline font-mono text-[10px] shrink-0">
+          Press <kbd className="bg-slate-200 text-slate-700 px-1 py-0.5 rounded font-bold text-[9px]">Enter ↵</kbd>
         </span>
       </div>
     </div>
