@@ -66,7 +66,24 @@ export function FloodDataProvider({ children }) {
         setReports(repRes.value)
       }
       if (shRes.status === 'fulfilled' && Array.isArray(shRes.value)) {
-        setShelters(shRes.value)
+        const normalizedShelters = shRes.value.map((s) => {
+          const cap = Number(s.capacity ?? s.totalCapacity ?? 0)
+          const occ = Number(s.currentOccupancy ?? 0)
+          return {
+            ...s,
+            id: s.id || s.shelterId || s._id,
+            capacity: cap,
+            totalCapacity: cap,
+            currentOccupancy: occ,
+            phone: s.phone || s.contact?.phone || '',
+            locationName: s.locationName || s.address || '',
+            facilities: Array.isArray(s.facilities) ? s.facilities : [],
+            elevationMeters: Number(s.elevationMeters ?? 30),
+            distanceKm: Number(s.distanceKm ?? 2.5),
+            roadCondition: s.roadCondition || 'Safe & Clear',
+          }
+        })
+        setShelters(normalizedShelters)
       }
       if (tmRes.status === 'fulfilled' && Array.isArray(tmRes.value)) {
         setRescueTeams(tmRes.value)

@@ -20,10 +20,9 @@ export default function ShelterFinder() {
       const matchSearch =
         s.name.toLowerCase().includes(search.toLowerCase()) ||
         s.locationName.toLowerCase().includes(search.toLowerCase())
-      const matchFacility =
-        filterFacility === 'ALL' ||
-        s.facilities?.some((f) => f.toLowerCase().includes(filterFacility.toLowerCase()))
-      const matchAvailable = !onlyAvailable || s.currentOccupancy < s.capacity
+      const cap = Number(s.capacity || s.totalCapacity || 0)
+      const occ = Number(s.currentOccupancy || 0)
+      const matchAvailable = !onlyAvailable || occ < cap
       return matchSearch && matchFacility && matchAvailable
     })
     .sort((a, b) => (b.isRecommended ? 1 : 0) - (a.isRecommended ? 1 : 0))

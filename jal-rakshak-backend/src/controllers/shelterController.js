@@ -33,6 +33,10 @@ const getAllShelters = async (req, res, next) => {
 
     let enrichedShelters = shelters.map((s) => {
       const sObj = typeof s.toObject === 'function' ? s.toObject() : { ...s };
+      sObj.id = sObj.shelterId || sObj._id;
+      sObj.capacity = sObj.totalCapacity !== undefined ? sObj.totalCapacity : sObj.capacity;
+      sObj.phone = sObj.contact?.phone || sObj.phone || '';
+      sObj.locationName = sObj.locationName || sObj.address || '';
       if (!isNaN(userLat) && !isNaN(userLng) && s.location && s.location.coordinates) {
         const [lng, lat] = s.location.coordinates;
         sObj.distanceKm = calculateDistanceKm(userLat, userLng, lat, lng);
@@ -87,6 +91,10 @@ const getNearbyShelters = async (req, res, next) => {
     const formatted = shelters.map((s) => {
       const obj = typeof s.toObject === 'function' ? s.toObject() : { ...s };
       const [sLng, sLat] = s.location ? s.location.coordinates : [85.86, 20.48];
+      obj.id = obj.shelterId || obj._id;
+      obj.capacity = obj.totalCapacity !== undefined ? obj.totalCapacity : obj.capacity;
+      obj.phone = obj.contact?.phone || obj.phone || '';
+      obj.locationName = obj.locationName || obj.address || '';
       obj.distanceKm = calculateDistanceKm(lat, lng, sLat, sLng);
       obj.lat = sLat;
       obj.lng = sLng;

@@ -16,8 +16,13 @@ export default function ShelterCard({ shelter, onSelect }) {
   const { t } = useLanguage()
   if (!shelter) return null
 
-  const occPct = Math.min(100, Math.round((shelter.currentOccupancy / shelter.capacity) * 100))
-  const remaining = Math.max(0, shelter.capacity - shelter.currentOccupancy)
+  const capacity = Number(shelter.capacity || shelter.totalCapacity || 0)
+  const currentOccupancy = Number(shelter.currentOccupancy || 0)
+  const occPct = capacity > 0 ? Math.min(100, Math.round((currentOccupancy / capacity) * 100)) : 0
+  const remaining = Math.max(0, capacity - currentOccupancy)
+  const phone = shelter.phone || shelter.contact?.phone || ''
+  const elevation = Number(shelter.elevationMeters || 30)
+  const distance = Number(shelter.distanceKm || 2.5)
 
   const isFull = occPct >= 100
   const isNearFull = occPct >= 85
@@ -37,11 +42,11 @@ export default function ShelterCard({ shelter, onSelect }) {
               </span>
             )}
             <span className="text-[11px] font-semibold text-slate-500">
-              Elev: <strong className="text-emerald-700 font-bold">{shelter.elevationMeters}m</strong>
+              Elev: <strong className="text-emerald-700 font-bold">{elevation}m</strong>
             </span>
           </div>
           <span className="text-xs font-extrabold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-lg">
-            {shelter.distanceKm} km
+            {distance} km
           </span>
         </div>
 
@@ -58,22 +63,23 @@ export default function ShelterCard({ shelter, onSelect }) {
               <Users className="w-3.5 h-3.5 text-slate-400" /> {t('common.capacity') || 'Capacity'}
             </span>
             <span className="font-bold text-slate-900">
-              {shelter.currentOccupancy} / {shelter.capacity} ({occPct}%)
+              {currentOccupancy.toLocaleString()} / {capacity.toLocaleString()} ({occPct}%)
             </span>
           </div>
 
           <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                isFull ? 'bg-red-600' : isNearFull ? 'bg-amber-500' : 'bg-emerald-500'
-              }`}
-              style={{ width: `${occPct}%` }}
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${occPct}%`,
+                backgroundColor: isFull ? '#dc2626' : isNearFull ? '#f59e0b' : '#10b981',
+              }}
             />
           </div>
 
           <div className="flex items-center justify-between text-[11px] mt-1.5 text-slate-500">
-            <span>{isFull ? '⚠️ Full' : `${remaining} slots vacant`}</span>
-            <span className="text-emerald-700 font-semibold">{shelter.roadCondition}</span>
+            <span>{isFull ? '⚠️ Full' : `${remaining.toLocaleString()} slots vacant`}</span>
+            <span className="text-emerald-700 font-semibold">{shelter.roadCondition || 'Safe & Clear'}</span>
           </div>
         </div>
 
@@ -98,16 +104,16 @@ export default function ShelterCard({ shelter, onSelect }) {
       {/* Action Buttons */}
       <div className="mt-5 pt-3 border-t border-slate-100 flex items-center gap-2">
         <Link
-          to={`/route?shelter=${shelter.id}`}
+          to={`/route?shelter=${shelter.id || shelter.shelterId || shelter._id}`}
           className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-brand-600 text-white font-bold text-xs hover:bg-brand-700 transition shadow-md shadow-brand-600/20"
         >
           <Navigation className="w-3.5 h-3.5" />
           <span>{t('shelters.getSafeRoute') || 'Get Safe Route'}</span>
         </Link>
 
-        {shelter.phone && (
+        {phone && (
           <a
-            href={`tel:${shelter.phone.replace(/\s+/g, '')}`}
+            href={`tel:${phone.replace(/\s+/g, '')}`}
             className="inline-flex items-center justify-center p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition"
             title="Call Shelter Operations Desk"
           >

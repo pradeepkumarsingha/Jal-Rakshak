@@ -204,8 +204,8 @@ export default function SafeRoute() {
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs bg-white focus:ring-2 focus:ring-brand-500 outline-none font-medium"
             >
               {shelters.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.distanceKm} km, {s.currentOccupancy}/{s.capacity})
+                <option key={s.id || s.shelterId || s._id} value={s.id || s.shelterId || s._id}>
+                  {s.name} ({s.distanceKm || 2.5} km, {s.currentOccupancy || 0}/{s.capacity || s.totalCapacity || 0})
                 </option>
               ))}
             </select>

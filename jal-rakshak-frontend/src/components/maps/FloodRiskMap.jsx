@@ -258,31 +258,41 @@ export default function FloodRiskMap({
                   <div className="mt-2 p-2 bg-slate-50 rounded-lg space-y-1 text-[11px]">
                     <div className="flex justify-between">
                       <span className="text-slate-500">Occupancy:</span>
-                      <strong className="text-slate-800">{shelter.currentOccupancy} / {shelter.capacity}</strong>
+                      <strong className="text-slate-800">
+                        {shelter.currentOccupancy || 0} / {shelter.capacity || shelter.totalCapacity || 0}
+                      </strong>
                     </div>
                     <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
                       <div
                         className="bg-purple-600 h-full rounded-full"
-                        style={{ width: `${(shelter.currentOccupancy / shelter.capacity) * 100}%` }}
+                        style={{
+                          width: `${
+                            (Number(shelter.capacity || shelter.totalCapacity) > 0)
+                              ? Math.min(100, Math.round(((Number(shelter.currentOccupancy) || 0) / Number(shelter.capacity || shelter.totalCapacity)) * 100))
+                              : 0
+                          }%`,
+                        }}
                       />
                     </div>
-                    <p className="text-emerald-700 font-medium mt-1">Elevation: {shelter.elevationMeters}m (Flood-Proof)</p>
+                    <p className="text-emerald-700 font-medium mt-1">Elevation: {shelter.elevationMeters || 30}m (Flood-Proof)</p>
                   </div>
 
                   <div className="mt-2 flex gap-1.5">
                     <Link
-                      to={`/route?shelter=${shelter.id}`}
+                      to={`/route?shelter=${shelter.id || shelter.shelterId || shelter._id}`}
                       className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-brand-600 text-white font-semibold text-[11px] hover:bg-brand-700"
                     >
                       <Navigation className="w-3 h-3" /> Safe Route
                     </Link>
-                    <a
-                      href={`tel:${shelter.phone}`}
-                      className="inline-flex items-center justify-center p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      title="Call Shelter"
-                    >
-                      <Phone className="w-3.5 h-3.5 text-slate-600" />
-                    </a>
+                    {(shelter.phone || shelter.contact?.phone) && (
+                      <a
+                        href={`tel:${(shelter.phone || shelter.contact?.phone).replace(/\s+/g, '')}`}
+                        className="inline-flex items-center justify-center p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        title="Call Shelter"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-slate-600" />
+                      </a>
+                    )}
                   </div>
                 </div>
               </Popup>

@@ -107,6 +107,16 @@ ShelterSchema.virtual('availableCapacity').get(function () {
   return Math.max(0, this.totalCapacity - (this.currentOccupancy || 0));
 });
 
+// Virtual for capacity alias
+ShelterSchema.virtual('capacity').get(function () {
+  return this.totalCapacity;
+});
+
+// Virtual for phone alias
+ShelterSchema.virtual('phone').get(function () {
+  return this.contact?.phone || '';
+});
+
 // Virtual for occupancy percentage
 ShelterSchema.virtual('occupancyRate').get(function () {
   if (!this.totalCapacity) return 0;

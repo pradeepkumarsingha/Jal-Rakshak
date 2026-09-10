@@ -4,13 +4,19 @@ import { Home, Users, Check, Edit2, Phone, Sparkles, ShieldCheck } from 'lucide-
 export default function ShelterManagementCard({ shelter, onUpdateOccupancy }) {
   if (!shelter) return null
 
+  const capacity = Number(shelter.capacity || shelter.totalCapacity || 0)
+  const currentOccupancy = Number(shelter.currentOccupancy || 0)
   const [editing, setEditing] = useState(false)
-  const [occ, setOcc] = useState(shelter.currentOccupancy)
+  const [occ, setOcc] = useState(currentOccupancy)
 
-  const occPct = Math.min(100, Math.round((shelter.currentOccupancy / shelter.capacity) * 100))
+  const occPct = capacity > 0 ? Math.min(100, Math.round((currentOccupancy / capacity) * 100)) : 0
+  const phone = shelter.phone || shelter.contact?.phone || ''
+  const elevation = Number(shelter.elevationMeters || 30)
+  const road = shelter.roadCondition || 'Safe & Clear'
+  const shelterId = shelter.id || shelter.shelterId || shelter._id
 
   const handleSave = () => {
-    onUpdateOccupancy(shelter.id, occ)
+    onUpdateOccupancy(shelterId, Number(occ) || 0)
     setEditing(false)
   }
 
@@ -19,7 +25,7 @@ export default function ShelterManagementCard({ shelter, onUpdateOccupancy }) {
       <div>
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded">
-            {shelter.id}
+            {shelterId}
           </span>
           <span
             className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -30,12 +36,12 @@ export default function ShelterManagementCard({ shelter, onUpdateOccupancy }) {
                 : 'bg-red-500/20 text-red-300'
             }`}
           >
-            {shelter.status}
+            {shelter.status || 'ACTIVE'}
           </span>
         </div>
 
         <h4 className="font-extrabold text-base text-white mt-2 leading-snug">{shelter.name}</h4>
-        <p className="text-xs text-slate-400 mt-0.5">{shelter.locationName}</p>
+        <p className="text-xs text-slate-400 mt-0.5">{shelter.locationName || shelter.address}</p>
 
         {/* Occupancy Counter & Modifier */}
         <div className="mt-4 p-3 bg-slate-950 rounded-xl border border-slate-800">
@@ -61,7 +67,7 @@ export default function ShelterManagementCard({ shelter, onUpdateOccupancy }) {
                 </div>
               ) : (
                 <div className="flex items-center gap-1">
-                  <span>{shelter.currentOccupancy} / {shelter.capacity} ({occPct}%)</span>
+                  <span>{currentOccupancy.toLocaleString()} / {capacity.toLocaleString()} ({occPct}%)</span>
                   <button
                     onClick={() => setEditing(true)}
                     className="p-1 text-slate-400 hover:text-white"
@@ -84,8 +90,8 @@ export default function ShelterManagementCard({ shelter, onUpdateOccupancy }) {
           </div>
 
           <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Elevation: <strong className="text-slate-200">{shelter.elevationMeters}m</strong></span>
-            <span>Road: <strong className="text-slate-200">{shelter.roadCondition}</strong></span>
+            <span>Elevation: <strong className="text-slate-200">{elevation}m</strong></span>
+            <span>Road: <strong className="text-slate-200">{road}</strong></span>
           </div>
         </div>
 
@@ -105,11 +111,11 @@ export default function ShelterManagementCard({ shelter, onUpdateOccupancy }) {
       </div>
 
       <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-        <span>Helpdesk: <strong className="text-slate-200">{shelter.phone}</strong></span>
+        <span>Helpdesk: <strong className="text-slate-200">{phone || 'N/A'}</strong></span>
         <button
           onClick={() => {
-            const added = Math.min(shelter.capacity, shelter.currentOccupancy + 25)
-            onUpdateOccupancy(shelter.id, added)
+            const added = Math.min(capacity, currentOccupancy + 25)
+            onUpdateOccupancy(shelterId, added)
           }}
           className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-brand-300 text-[11px] font-semibold"
         >

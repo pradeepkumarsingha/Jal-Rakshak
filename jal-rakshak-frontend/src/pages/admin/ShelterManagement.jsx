@@ -9,10 +9,10 @@ export default function ShelterManagement() {
   const { showToast } = useAlert()
   const [modalOpen, setModalOpen] = useState(false)
 
-  const totalCapacity = shelters.reduce((acc, s) => acc + s.capacity, 0)
-  const totalOccupancy = shelters.reduce((acc, s) => acc + s.currentOccupancy, 0)
-  const totalSlotsLeft = totalCapacity - totalOccupancy
-  const overallPct = Math.round((totalOccupancy / totalCapacity) * 100)
+  const totalCapacity = shelters.reduce((acc, s) => acc + (Number(s.capacity || s.totalCapacity) || 0), 0)
+  const totalOccupancy = shelters.reduce((acc, s) => acc + (Number(s.currentOccupancy) || 0), 0)
+  const totalSlotsLeft = Math.max(0, totalCapacity - totalOccupancy)
+  const overallPct = totalCapacity > 0 ? Math.round((totalOccupancy / totalCapacity) * 100) : 0
 
   const handleUpdateOccupancy = (id, occ) => {
     updateShelterOccupancy(id, occ)
