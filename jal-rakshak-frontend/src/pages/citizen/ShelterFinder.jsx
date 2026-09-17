@@ -17,12 +17,19 @@ export default function ShelterFinder() {
 
   const filtered = shelters
     .filter((s) => {
-      const matchSearch =
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.locationName.toLowerCase().includes(search.toLowerCase())
+      const name = (s.name || '').toLowerCase()
+      const loc = (s.locationName || s.location || '').toLowerCase()
+      const query = search.toLowerCase()
+      const matchSearch = !search || name.includes(query) || loc.includes(query)
       const cap = Number(s.capacity || s.totalCapacity || 0)
       const occ = Number(s.currentOccupancy || 0)
       const matchAvailable = !onlyAvailable || occ < cap
+      const matchFacility =
+        filterFacility === 'ALL' ||
+        (Array.isArray(s.facilities) &&
+          s.facilities.some((f) =>
+            f.toLowerCase().includes(filterFacility.toLowerCase())
+          ))
       return matchSearch && matchFacility && matchAvailable
     })
     .sort((a, b) => (b.isRecommended ? 1 : 0) - (a.isRecommended ? 1 : 0))
